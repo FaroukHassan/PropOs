@@ -1,0 +1,137 @@
+// backend/prisma/schema.prisma
+// Run: npx prisma migrate dev --name init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  passwordHash String
+  name         String
+  role         Role       @default(MANAGER)
+  orgId        String
+  org          Org        @relation(fields: [orgId], references: [id])
+  createdAt    DateTime   @default(now())
+}
+
+model Org {
+  id         String       @id @default(uuid())
+  name       String
+  plan       Plan         @default(FREE)
+  users      User[]
+  properties Property[]
+  createdAt  DateTime     @default(now())
+}
+
+model Property {
+  id        String   @id @default(uuid())
+  orgId     String
+  org       Org      @relation(fields: [orgId], references: [id])
+  name      String
+  address   String
+  city      String
+  type      PropertyType @default(RESIDENTIAL)
+  units     Unit[]
+  createdAt DateTime @default(now())
+}
+
+model Unit {
+  id         String    @id @default(uuid())
+  propertyId String
+  property   Property  @relation(fields: [propertyId], references: [id])
+  number     String
+  floor      Int?
+  bedrooms   Int       @default(1)
+  bathrooms  Float     @default(1)
+  sqft       Float?
+  rentAmount Float
+  leases     Lease[]
+  maintenance MaintenanceRequest[]
+}
+
+model Tenant {
+  id          String    @id @default(uuid())
+  orgId       String
+  name        String
+  email       String
+  phone       String?
+  idNumber    String?
+  emergencyContact String?
+  leases      Lease[]
+  createdAt   DateTime  @default(now())
+}
+
+model Lease {
+  id          String      @id @default(uuid())
+  unitId      String
+  unit        Unit        @relation(fields: [unitId], references: [id])
+  tenantId    String
+  tenant      Tenant      @relation(fields: [tenantId], references: [id])
+  startDate   DateTime
+  endDate     DateTime
+  rentAmount  Float
+  deposit     Float
+  status      LeaseStatus @default(ACTIVE)
+  payments    Payment[]
+  createdAt   DateTime    @default(now())
+}
+
+model Payment {
+  id          String        @id @default(uuid())
+  leaseId     String
+  lease       Lease         @relation(fields: [leaseId], references: [id])
+  amount      Float
+  dueDate     DateTime
+  paidDate    DateTime?
+  status      PaymentStatus @default(PENDING)
+  method      String?
+  stripeId    String?       @unique
+  notes       String?
+  createdAt   DateTime      @default(now())
+}
+
+model MaintenanceRequest {
+  id          String            @id @default(uuid())
+  unitId      String
+  unit        Unit              @relation(fields: [unitId], references: [id])
+  title       String
+  description String
+  category    MaintenanceCategory
+  priority    Priority          @default(NORMAL)
+  status      MaintenanceStatus @default(OPEN)
+  assignedTo  String?
+  resolvedAt  DateTime?
+  cost        Float?
+  createdAt   DateTime          @default(now())
+}
+
+model Expense {
+  id          String          @id @default(uuid())
+  orgId       String
+  propertyId  String?
+  category    ExpenseCategory
+  description String
+  amount      Float
+  date        DateTime
+  vendor      String?
+  receipt     String?
+  createdAt   DateTime        @default(now())
+}
+
+// Enums
+enum Role         { ADMIN MANAGER VIEWER }
+enum Plan         { FREE PRO ENTERPRISE }
+enum PropertyType { RESIDENTIAL COMMERCIAL SHORT_TERM }
+enum LeaseStatus  { ACTIVE EXPIRED TERMINATED PENDING }
+enum PaymentStatus{ PENDING PAID LATE OVERDUE WAIVED }
+enum Priority     { LOW NORMAL HIGH URGENT }
+enum MaintenanceStatus { OPEN IN_PROGRESS RESOLVED CLOSED }
+enum MaintenanceCategory { PLUMBING ELECTRICAL HVAC APPLIANCE STRUCTURAL GENERAL }
+enum ExpenseCategory { MAINTENANCE INSURANCE TAX UTILITIES MANAGEMENT MARKETING OTHER }
