@@ -14,15 +14,33 @@ const financeRoutes     = require('./routes/finance');
 const reportsRoutes     = require('./routes/reports');
 const { errorHandler }  = require('./middleware/errorHandler');
 const { authenticate }  = require('./middleware/auth');
+const { resolveTenant } = require('./middleware/tenant');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
 // ─── Middleware ───────────────────────────────────────────────────────────────
 app.use(helmet());
-app.use(cors({ origin: process.env.FRONTEND_URL || 'http://localhost:5173' }));
+
+// CORS — allow multiple origins for multi-tenant subdomains
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173')
+  .split(',')
+  .map(o => o.trim());
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) return cb(null, true);
+    // Allow any subdomain of the main domain
+    const mainDomain = process.env.MAIN_DOMAIN; // e.g. propos.app
+    if (mainDomain && origin.endsWith(mainDomain)) return cb(null, true);
+    cb(null, false);
+  },
+  credentials: true,
+}));
 app.use(morgan('dev'));
 app.use(express.json());
+
+// ─── Tenant resolution (subdomain → org) ─────────────────────────────────────
+app.use(resolveTenant);
 
 // ─── Public routes ────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);

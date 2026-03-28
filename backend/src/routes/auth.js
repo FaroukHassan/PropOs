@@ -13,19 +13,24 @@ router.post('/register', [
   body('password').isLength({ min: 8 }),
   body('name').notEmpty(),
   body('orgName').notEmpty(),
+  body('slug').optional().matches(/^[a-z0-9-]+$/).withMessage('Slug must be lowercase alphanumeric with hyphens'),
 ], async (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(422).json({ errors: errors.array() });
 
   try {
-    const { email, password, name, orgName } = req.body;
+    const { email, password, name, orgName, slug } = req.body;
+    const orgSlug = slug || orgName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) return res.status(409).json({ error: 'Email already registered' });
 
+    const existingOrg = await prisma.org.findUnique({ where: { slug: orgSlug } });
+    if (existingOrg) return res.status(409).json({ error: 'Organization slug already taken' });
+
     const passwordHash = await bcrypt.hash(password, 12);
 
-    const org = await prisma.org.create({ data: { name: orgName } });
+    const org = await prisma.org.create({ data: { name: orgName, slug: orgSlug } });
     const user = await prisma.user.create({
       data: { email, passwordHash, name, role: 'ADMIN', orgId: org.id },
     });

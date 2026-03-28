@@ -24,9 +24,12 @@ model User {
 model Org {
   id         String       @id @default(uuid())
   name       String
+  slug       String       @unique
   plan       Plan         @default(FREE)
   users      User[]
   properties Property[]
+  expenses   Expense[]
+  tenants    Tenant[]
   createdAt  DateTime     @default(now())
 }
 
@@ -59,6 +62,7 @@ model Unit {
 model Tenant {
   id          String    @id @default(uuid())
   orgId       String
+  org         Org       @relation(fields: [orgId], references: [id])
   name        String
   email       String
   phone       String?
@@ -115,6 +119,7 @@ model MaintenanceRequest {
 model Expense {
   id          String          @id @default(uuid())
   orgId       String
+  org         Org             @relation(fields: [orgId], references: [id])
   propertyId  String?
   category    ExpenseCategory
   description String
