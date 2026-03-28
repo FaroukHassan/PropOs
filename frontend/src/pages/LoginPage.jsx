@@ -2,11 +2,12 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { DEMO_USER, DEMO_TOKEN } from '../utils/demoData';
 
 const CARD = { background:'var(--bg)', border:'1px solid var(--border)', borderRadius:16, padding:36, width:380, maxWidth:'94vw', boxShadow:'0 4px 24px rgba(0,0,0,0.08)' };
 
 export default function LoginPage() {
-  const { login }     = useAuth();
+  const { login, loginDemo } = useAuth();
   const navigate      = useNavigate();
   const [form, set]   = useState({ email: '', password: '' });
   const [error, setErr] = useState('');
@@ -47,7 +48,20 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div style={{ marginTop:20, textAlign:'center', fontSize:13, color:'var(--text-2)' }}>
+        <div style={{ position:'relative', margin:'20px 0 12px', textAlign:'center' }}>
+          <div style={{ borderTop:'1px solid var(--border)', position:'absolute', top:'50%', left:0, right:0 }}></div>
+          <span style={{ position:'relative', background:'var(--bg)', padding:'0 12px', fontSize:12, color:'var(--text-3)' }}>or</span>
+        </div>
+
+        <button
+          className="btn"
+          onClick={() => { loginDemo(); navigate('/dashboard'); }}
+          style={{ width:'100%', padding:'9px 0', fontSize:14, background:'var(--bg-3)', border:'1px solid var(--border)', cursor:'pointer' }}
+        >
+          Try Demo Mode
+        </button>
+
+        <div style={{ marginTop:16, textAlign:'center', fontSize:13, color:'var(--text-2)' }}>
           No account? <Link to="/register" style={{ color:'var(--blue)' }}>Create one</Link>
         </div>
       </div>

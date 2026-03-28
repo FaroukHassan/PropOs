@@ -1,6 +1,7 @@
 // frontend/src/context/AuthContext.jsx
 import { createContext, useContext, useState, useEffect } from 'react';
 import { api } from '../utils/api';
+import { DEMO_USER, DEMO_TOKEN } from '../utils/demoData';
 
 const AuthContext = createContext(null);
 
@@ -11,6 +12,8 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (!token) { setLoading(false); return; }
+    // Demo mode: restore user instantly
+    if (token === DEMO_TOKEN) { setUser(DEMO_USER); setLoading(false); return; }
     api.get('/auth/me')
       .then(data => setUser(data))
       .catch(() => localStorage.removeItem('token'))
@@ -31,13 +34,18 @@ export function AuthProvider({ children }) {
     return data.user;
   };
 
+  const loginDemo = () => {
+    localStorage.setItem('token', DEMO_TOKEN);
+    setUser(DEMO_USER);
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     setUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, loginDemo, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

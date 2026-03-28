@@ -91,7 +91,7 @@ export default function MaintenancePage() {
                       <td><Badge priority={m.priority} /></td>
                       <td><Badge status={m.status} /></td>
                       <td>
-                        <div style={{ display:'flex', gap:4' }}>
+                        <div style={{ display:'flex', gap:4 }}>
                           {m.status === 'OPEN'        && <button className="btn btn-sm" onClick={() => updateStatus(m.id, 'IN_PROGRESS')}>Start</button>}
                           {m.status === 'IN_PROGRESS' && <button className="btn btn-sm" style={{ color:'var(--green)' }} onClick={() => updateStatus(m.id, 'RESOLVED')}>Resolve</button>}
                         </div>

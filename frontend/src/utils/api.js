@@ -1,7 +1,21 @@
 // frontend/src/utils/api.js
+import { demoRequest, DEMO_TOKEN } from './demoData';
+
 const BASE = import.meta.env.VITE_API_URL || '/api';
 
+// Demo mode: enabled when no VITE_API_URL is set or token is demo token
+function isDemoMode() {
+  return !import.meta.env.VITE_API_URL || localStorage.getItem('token') === DEMO_TOKEN;
+}
+
 async function request(method, path, body) {
+  // In demo mode, return mock data
+  if (isDemoMode()) {
+    // Small delay to simulate network
+    await new Promise(r => setTimeout(r, 200));
+    return demoRequest(method, path, body);
+  }
+
   const token = localStorage.getItem('token');
   const res = await fetch(`${BASE}${path}`, {
     method,
