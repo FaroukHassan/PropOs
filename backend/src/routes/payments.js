@@ -1,5 +1,6 @@
 // backend/src/routes/payments.js
-const router = require('express').Router();
+const express = require('express');
+const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
 const Stripe = require('stripe');
 
