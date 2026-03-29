@@ -131,12 +131,68 @@ model Expense {
 }
 
 // Enums
-enum Role         { ADMIN MANAGER VIEWER }
-enum Plan         { FREE PRO ENTERPRISE }
-enum PropertyType { RESIDENTIAL COMMERCIAL SHORT_TERM }
-enum LeaseStatus  { ACTIVE EXPIRED TERMINATED PENDING }
-enum PaymentStatus{ PENDING PAID LATE OVERDUE WAIVED }
-enum Priority     { LOW NORMAL HIGH URGENT }
-enum MaintenanceStatus { OPEN IN_PROGRESS RESOLVED CLOSED }
-enum MaintenanceCategory { PLUMBING ELECTRICAL HVAC APPLIANCE STRUCTURAL GENERAL }
-enum ExpenseCategory { MAINTENANCE INSURANCE TAX UTILITIES MANAGEMENT MARKETING OTHER }
+enum Role {
+  ADMIN
+  MANAGER
+  VIEWER
+}
+
+enum Plan {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+enum PropertyType {
+  RESIDENTIAL
+  COMMERCIAL
+  SHORT_TERM
+}
+
+enum LeaseStatus {
+  ACTIVE
+  EXPIRED
+  TERMINATED
+  PENDING
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  LATE
+  OVERDUE
+  WAIVED
+}
+
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum MaintenanceStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum MaintenanceCategory {
+  PLUMBING
+  ELECTRICAL
+  HVAC
+  APPLIANCE
+  STRUCTURAL
+  GENERAL
+}
+
+enum ExpenseCategory {
+  MAINTENANCE
+  INSURANCE
+  TAX
+  UTILITIES
+  MANAGEMENT
+  MARKETING
+  OTHER
+}
