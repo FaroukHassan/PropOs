@@ -3,7 +3,7 @@ const BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
 
 export const tokenStore = {
   get: () => { try { return localStorage.getItem('propos_token'); } catch { return null; } },
-  set: t => { try { t ? localStorage.setItem('propos_token', t) : localStorage.removeItem('propos_token'); } catch { /* storage blocked */ } },
+  set: tx => { try { tx ? localStorage.setItem('propos_token', tx) : localStorage.removeItem('propos_token'); } catch { /* storage blocked */ } },
 };
 
 let onUnauthorized = () => {};

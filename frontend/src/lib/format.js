@@ -1,4 +1,5 @@
 // frontend/src/lib/format.js — numbers, dates and labels
+import { t, isAr, locale } from './i18n';
 const aed = new Intl.NumberFormat('en-AE', { maximumFractionDigits: 0 });
 const aed2 = new Intl.NumberFormat('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -7,7 +8,8 @@ export const money = (n, { decimals = false, sign = false } = {}) => {
   const v = Number(n);
   const hasCents = Math.round(v * 100) % 100 !== 0;
   const s = (decimals || hasCents ? aed2 : aed).format(Math.abs(v));
-  return `${v < 0 ? '−' : sign && v > 0 ? '+' : ''}AED ${s}`;
+  const signStr = v < 0 ? '−' : sign && v > 0 ? '+' : '';
+  return isAr ? `${signStr}${s} د.إ` : `${signStr}AED ${s}`;
 };
 export const num = n => (n === null || n === undefined ? '—' : aed.format(n));
 export const pct = (n, digits = 0) => (n === null || n === undefined ? '—' : `${(n * 100).toFixed(digits)}%`);
@@ -16,9 +18,9 @@ export const pct = (n, digits = 0) => (n === null || n === undefined ? '—' : `
 export const date = d => {
   if (!d) return '—';
   const x = new Date(d);
-  return x.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+  return x.toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 };
-export const shortDate = d => (d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }) : '—');
+export const shortDate = d => (d ? new Date(d).toLocaleDateString(locale, { day: 'numeric', month: 'short', timeZone: 'UTC' }) : '—');
 export const isoDay = d => (d ? new Date(d).toISOString().slice(0, 10) : '');
 export const today = () => {
   const n = new Date();
@@ -27,7 +29,7 @@ export const today = () => {
 export const monthKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 export const monthLabel = key => {
   const [y, m] = key.split('-').map(Number);
-  return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  return new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString(locale, { month: 'long', year: 'numeric', timeZone: 'UTC' });
 };
 export const shiftMonth = (key, n) => {
   const [y, m] = key.split('-').map(Number);
@@ -65,6 +67,9 @@ export const L = {
   role: { ADMIN: 'Admin', MANAGER: 'Manager', VIEWER: 'Read-only' },
   rentStatus: { PAID: 'Paid', PARTIAL: 'Part paid', DUE: 'Due', OVERDUE: 'Overdue' },
 };
+// Show every label in the chosen language
+for (const group of Object.values(L)) for (const k of Object.keys(group)) group[k] = t(group[k]);
+
 export const INCOME_CATS = ['RENT', 'DEPOSIT', 'BOOKING', 'LEASING_COMMISSION', 'OTHER_INCOME'];
 export const EXPENSE_CATS = Object.keys(L.category).filter(c => !INCOME_CATS.includes(c));
 

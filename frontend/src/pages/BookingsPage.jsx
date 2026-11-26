@@ -1,4 +1,5 @@
 // frontend/src/pages/BookingsPage.jsx — holiday-home calendar and bookings
+import { t, locale } from '../lib/i18n';
 import { useState, useMemo } from 'react';
 import { useScope } from '../lib/scope';
 import { usePeriod, PeriodPicker } from '../lib/period';
@@ -29,7 +30,7 @@ export default function BookingsPage() {
   const days = useMemo(() => {
     const start = new Date(`${from}T00:00:00Z`), end = new Date(`${endIso}T00:00:00Z`);
     const out = [];
-    for (let t = start.getTime(); t < end.getTime(); t += DAY) out.push(new Date(t));
+    for (let tx = start.getTime(); tx < end.getTime(); tx += DAY) out.push(new Date(tx));
     return out;
   }, [from, endIso]);
 
@@ -52,39 +53,39 @@ export default function BookingsPage() {
 
   const save = async (v, existing) => {
     if (existing) await api.patch(`/bookings/${existing.id}`, v); else await api.post('/bookings', v);
-    toast(existing ? 'Booking updated' : 'Booking added'); setModal(null); refetch();
+    toast(existing ? t("Booking updated") : t("Booking added")); setModal(null); refetch();
   };
 
   return (
     <>
       <div className="toolbar">
         <PeriodPicker />
-        {longPeriod ? <span className="small muted">List view for periods over 2 months</span>
-          : <Tabs value={view} onChange={setView} items={[['calendar', 'Calendar'], ['list', 'List']]} />}
+        {longPeriod ? <span className="small muted">{t("List view for periods over 2 months")}</span>
+          : <Tabs value={view} onChange={setView} items={[['calendar', t("Calendar")], ['list', t("List")]]} />}
         <div className="grow" />
-        {can.write && <button className="btn btn-primary" disabled={!homes.length} onClick={() => setModal({})}>+ Booking</button>}
+        {can.write && <button className="btn btn-primary" disabled={!homes.length} onClick={() => setModal({})}>{t("+ Booking")}</button>}
       </div>
 
       {homes.length === 0 ? (
-        <Empty icon="☾" title="No holiday homes yet">Add an apartment and set "How it is rented" to Holiday home, or mark a partition as Reserved to let it nightly.</Empty>
+        <Empty icon="☾" title={t("No holiday homes yet")}>{t("Add an apartment and set \"How it is rented\" to Holiday home, or mark a partition as Reserved to let it nightly.")}</Empty>
       ) : (
         <>
           <div className="grid g4" style={{ marginBottom: 16 }}>
-            <Stat label="Occupancy" value={avail ? `${Math.round((booked / avail) * 100)}%` : '—'} progress={avail ? booked / avail : 0} />
-            <Stat label="Nights booked" value={`${booked} / ${avail}`} />
-            <Stat label="Average nightly rate (net)" value={booked ? money(net / booked) : '—'} />
-            <Stat accent label="Net revenue" value={money(net)} sub={`${period.label} · after channel commission`} />
+            <Stat label={t("Occupancy")} value={avail ? `${Math.round((booked / avail) * 100)}%` : '—'} progress={avail ? booked / avail : 0} />
+            <Stat label={t("Nights booked")} value={`${booked} / ${avail}`} />
+            <Stat label={t("Average nightly rate (net)")} value={booked ? money(net / booked) : '—'} />
+            <Stat accent label={t("Net revenue")} value={money(net)} sub={t("{0} · after channel commission", [period.label])} />
           </div>
 
           {view === 'calendar' ? (
             <div className="card card-flush cal">
               <div className="cal-grid" style={{ gridTemplateColumns: `170px repeat(${days.length}, 40px)` }}>
-                <div className="cal-cell cal-head cal-unit">Home</div>
+                <div className="cal-cell cal-head cal-unit">{t("Home")}</div>
                 {days.map(d => {
                   const iso = d.toISOString().slice(0, 10);
                   const wd = d.getUTCDay();
                   return <div key={iso} className={`cal-cell cal-head ${iso === today() ? 'today' : ''} ${wd === 5 || wd === 6 ? 'weekend' : ''}`}>
-                    <span>{d.toLocaleDateString('en-GB', { weekday: 'narrow', timeZone: 'UTC' })}</span><b>{d.getUTCDate()}</b></div>;
+                    <span>{d.toLocaleDateString(locale, { weekday: 'narrow', timeZone: 'UTC' })}</span><b>{d.getUTCDate()}</b></div>;
                 })}
                 {calRows.map(r => (
                   <Row key={r.key} label={r.label} days={days} monthStart={monthStart}
@@ -95,16 +96,16 @@ export default function BookingsPage() {
               </div>
               <div className="legend" style={{ padding: '10px 14px' }}>
                 {Object.entries(L.channel).map(([k, v]) => <span key={k}><i className={`ch-${k}`} />{v}</span>)}
-                <span className="faint">Click an empty day to add a booking</span>
+                <span className="faint">{t("Click an empty day to add a booking")}</span>
               </div>
             </div>
           ) : (
             <div className="card card-flush">
               <div className="table-wrap">
                 <table className="table">
-                  <thead><tr><th>Guest</th><th>Home</th><th>Channel</th><th>Check-in</th><th>Check-out</th><th className="num">Nights</th><th className="num">Total</th><th className="num">Net</th><th>Status</th></tr></thead>
+                  <thead><tr><th>{t("Guest")}</th><th>{t("Home")}</th><th>{t("Channel")}</th><th>{t("Check-in")}</th><th>{t("Check-out")}</th><th className="num">{t("Nights")}</th><th className="num">{t("Total")}</th><th className="num">{t("Net")}</th><th>{t("Status")}</th></tr></thead>
                   <tbody>
-                    {(data || []).length === 0 && <tr><td colSpan={9} className="muted">No bookings in this period.</td></tr>}
+                    {(data || []).length === 0 && <tr><td colSpan={9} className="muted">{t("No bookings in this period.")}</td></tr>}
                     {(data || []).map(b => (
                       <tr key={b.id} className="clickable" onClick={() => can.write && setModal({ booking: b })}>
                         <td className="bold">{b.guestName}<div className="tiny faint">{b.guestPhone}</div></td>
@@ -124,12 +125,12 @@ export default function BookingsPage() {
       )}
 
       {modal && (
-        <FormModal title={modal.booking ? `Booking — ${modal.booking.guestName}` : 'New booking'} wide
+        <FormModal title={modal.booking ? t("Booking — {0}", [modal.booking.guestName]) : t("New booking")} wide
           fields={bookingFields({ units: homes })}
           initial={modal.booking ? { ...modal.booking, checkIn: isoDay(modal.booking.checkIn), checkOut: isoDay(modal.booking.checkOut) } : modal.preset}
-          intro={modal.booking && <p className="small muted" style={{ marginBottom: 12 }}>When the payout arrives, record it under Income & expenses as a Holiday booking.</p>}
+          intro={modal.booking && <p className="small muted" style={{ marginBottom: 12 }}>{t("When the payout arrives, record it under Income & expenses as a Holiday booking.")}</p>}
           onClose={() => setModal(null)}
-          onDelete={modal.booking ? async () => { await api.del(`/bookings/${modal.booking.id}`); toast('Booking deleted'); setModal(null); refetch(); } : undefined}
+          onDelete={modal.booking ? async () => { await api.del(`/bookings/${modal.booking.id}`); toast(t("Booking deleted")); setModal(null); refetch(); } : undefined}
           onSubmit={v => save(v, modal.booking)} />
       )}
     </>
@@ -139,7 +140,7 @@ export default function BookingsPage() {
 function Row({ label, days, bookings, monthStart, onPick, onEmpty }) {
   const taken = new Set();
   for (const b of bookings) {
-    for (let t = new Date(b.checkIn).getTime(); t < new Date(b.checkOut).getTime(); t += DAY) taken.add(new Date(t).toISOString().slice(0, 10));
+    for (let tx = new Date(b.checkIn).getTime(); tx < new Date(b.checkOut).getTime(); tx += DAY) taken.add(new Date(tx).toISOString().slice(0, 10));
   }
   return (
     <>
@@ -157,7 +158,7 @@ function Row({ label, days, bookings, monthStart, onPick, onEmpty }) {
               const startT = Math.max(new Date(b.checkIn).getTime(), monthStart);
               const span = Math.min(Math.round((new Date(b.checkOut).getTime() - startT) / DAY), days.length - i);
               return (
-                <div key={b.id} className={`cal-bar ch-${b.channel}`} title={`${b.guestName} · ${b.nights} nights · ${money(b.totalAmount)}`}
+                <div key={b.id} className={`cal-bar ch-${b.channel}`} title={t("{0} · {1} nights · {2}", [b.guestName, b.nights, money(b.totalAmount)])}
                   style={{ position: 'absolute', left: 2, top: 0, width: span * 40 - 4, opacity: b.status === 'INQUIRY' ? 0.5 : 1 }}
                   onClick={e => { e.stopPropagation(); onPick(b); }}>
                   {b.guestName}

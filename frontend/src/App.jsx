@@ -1,6 +1,8 @@
 // frontend/src/App.jsx — layout and routes
+import { t, isAr, locale } from './lib/i18n';
+import LangSwitch from './components/LangSwitch';
 import { useState, useEffect } from 'react';
-import { Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, NavLink, Link, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './lib/auth';
 import { ToastProvider } from './components/ui';
 import { initials, L } from './lib/format';
@@ -31,7 +33,7 @@ const NAV = [
   ['Money', [['/rent', '✓', 'Rent collection'], ['/ledger', '≡', 'Income & expenses'], ['/cheques', '✎', 'Cheques'], ['/reports', '◔', 'Reports']]],
   ['Operations', [['/maintenance', '⚒', 'Maintenance'], ['/import', '⇪', 'Import from sheets'], ['/settings', '⚙', 'Settings']]],
 ];
-const TITLES = Object.fromEntries(NAV.flatMap(([, items]) => items.map(([to, , label]) => [to, label])));
+const TITLES = Object.fromEntries(NAV.flatMap(([, items]) => items.map(([to, , label]) => [to, t(label)])));
 // Screens the apartment filter doesn't apply to
 const NO_SCOPE = ['/landlords', '/import', '/settings'];
 // Phone bottom bar: the four screens the team opens most; everything else is under "More".
@@ -42,15 +44,18 @@ function Sidebar({ open, onNavigate }) {
   return (
     <aside className={`sidebar ${open ? 'open' : ''}`}>
       <div className="brand">
-        <div className="brand-name">Sakanly <span>PropOS</span></div>
-        <div className="brand-sub">Feels like home · سكنلي</div>
+        <Link to="/dashboard" className="brand-name brand-link" onClick={onNavigate} title={t('Home')}>{t('Sakanly')} <span>{t('Real Estate')}</span></Link>
+        <div className="row-between" style={{ marginTop: 4 }}>
+          <div className="brand-sub" style={{ marginTop: 0 }}>{t('Your home, evolved.')}</div>
+          <LangSwitch dark />
+        </div>
       </div>
       <nav className="nav">
         {NAV.map(([section, items]) => (
           <div key={section}>
-            <div className="nav-section">{section}</div>
+            <div className="nav-section">{t(section)}</div>
             {items.map(([to, icon, label]) => (
-              <NavLink key={to} to={to} onClick={onNavigate}><span className="nav-icon">{icon}</span>{label}</NavLink>
+              <NavLink key={to} to={to} onClick={onNavigate}><span className="nav-icon">{icon}</span>{t(label)}</NavLink>
             ))}
           </div>
         ))}
@@ -58,7 +63,7 @@ function Sidebar({ open, onNavigate }) {
       <div className="sidebar-foot">
         <div className="badge b-sand" style={{ width: 30, height: 30, borderRadius: '50%', justifyContent: 'center', padding: 0 }}>{initials(user?.name)}</div>
         <div className="who"><div>{user?.name}</div><div>{L.role[user?.role]}</div></div>
-        <button className="btn btn-sm btn-ghost" style={{ color: '#c3cbdb' }} onClick={logout} title="Sign out">Sign out</button>
+        <button className="btn btn-sm btn-ghost" style={{ color: '#c3cbdb' }} onClick={logout} title={t("Sign out")}>{t("Sign out")}</button>
       </div>
     </aside>
   );
@@ -70,9 +75,9 @@ function Shell() {
   const [menu, setMenu] = useState(false);
   useEffect(() => setMenu(false), [pathname]);
   useMobileTables();
-  if (loading) return <div className="loading" style={{ height: '100vh' }}>Loading…</div>;
+  if (loading) return <div className="loading" style={{ height: '100vh' }}>{t("Loading…")}</div>;
   if (!user) return <Navigate to="/login" replace />;
-  const title = TITLES[pathname] || (pathname.startsWith('/units/') ? 'Apartment' : 'PropOS');
+  const title = TITLES[pathname] || (pathname.startsWith('/units/') ? t('Apartment') : 'PropOS');
   return (
     <ScopeProvider><PeriodProvider>
     <div className="app">
@@ -81,15 +86,15 @@ function Shell() {
       <div className="main">
         <header className="topbar">
           <div className="row grow">
-            <button className="btn btn-sm menu-btn" onClick={() => setMenu(m => !m)} aria-label="Menu">☰</button>
+            <button className="btn btn-sm menu-btn" onClick={() => setMenu(m => !m)} aria-label={t("Menu")}>☰</button>
             <h1 className="page-title">{title}</h1>
           </div>
           <div className="row topbar-right">
             {!NO_SCOPE.includes(pathname) && !pathname.startsWith('/units/') && <ScopePicker />}
-            <span className="small faint topbar-date">{new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span>
+            <span className="small faint topbar-date">{new Date().toLocaleDateString(locale, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span>
           </div>
         </header>
-        {import.meta.env.VITE_DEMO && <div className="alert alert-info" style={{ margin: 0, borderRadius: 0, textAlign: 'center' }}>Demo with sample data. Click around freely; changes are not saved. Sample month: November 2026.</div>}
+        {import.meta.env.VITE_DEMO && <div className="alert alert-info" style={{ margin: 0, borderRadius: 0, textAlign: 'center' }}>{t("Demo with sample data. Click around freely; changes are not saved. Sample month: November 2026.")}</div>}
         <main className="content">
           <Routes>
             <Route path="/dashboard" element={<DashboardPage />} />
@@ -109,11 +114,11 @@ function Shell() {
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </main>
-        <nav className="tabbar" aria-label="Main">
+        <nav className="tabbar" aria-label={t("Main")}>
           {TABBAR.map(([to, icon, label]) => (
-            <NavLink key={to} to={to}><span className="tab-icon">{icon}</span>{label}</NavLink>
+            <NavLink key={to} to={to}><span className="tab-icon">{icon}</span>{t(label)}</NavLink>
           ))}
-          <button className={menu ? 'active' : ''} onClick={() => setMenu(m => !m)}><span className="tab-icon">☰</span>More</button>
+          <button className={menu ? 'active' : ''} onClick={() => setMenu(m => !m)}><span className="tab-icon">☰</span>{t("More")}</button>
         </nav>
       </div>
     </div>

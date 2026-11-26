@@ -1,4 +1,5 @@
 // frontend/src/pages/PartitionsPage.jsx — the availability board (replaces the partitions sheet)
+import { t } from '../lib/i18n';
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useScope } from '../lib/scope';
@@ -50,12 +51,12 @@ export default function PartitionsPage() {
 
   if (error) return <ErrorBox error={error} retry={refetch} />;
   if (loading && !data) return <Spinner />;
-  const t = data.totals;
+  const tx = data.totals;
   const reload = () => { refetch(); units.refetch(); tenants.refetch(); };
 
   const copyList = async () => {
     const text = availabilityText(data.buildings);
-    try { await navigator.clipboard.writeText(text); toast('Available list copied, paste it into WhatsApp'); }
+    try { await navigator.clipboard.writeText(text); toast(t("Available list copied, paste it into WhatsApp")); }
     catch { setModal({ kind: 'text', text }); }
   };
 
@@ -63,25 +64,25 @@ export default function PartitionsPage() {
     <>
       <div className="toolbar">
         <Tabs value={filter} onChange={setFilter} items={[
-          ['ALL', `All ${t.spaces}`], ['AVAILABLE', `Available ${t.available}`], ['OCCUPIED', `Occupied ${t.occupied}`],
-          ['RESERVED', `Reserved ${t.reserved}`], ['NOT_READY', `Not ready ${t.notReady}`],
+          ['ALL', t("All {0}", [tx.spaces])], ['AVAILABLE', t("Available {0}", [tx.available])], ['OCCUPIED', t("Occupied {0}", [tx.occupied])],
+          ['RESERVED', t("Reserved {0}", [tx.reserved])], ['NOT_READY', t("Not ready {0}", [tx.notReady])],
         ]} />
-        <select className="input input-sm" value={occ} onChange={e => setOcc(e.target.value)} aria-label="Who for">
-          <option value="">Mixed & ladies</option>
+        <select className="input input-sm" value={occ} onChange={e => setOcc(e.target.value)} aria-label={t("Who for")}>
+          <option value="">{t("Mixed & ladies")}</option>
           {Object.entries(L.occupancy).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
         <div className="grow" />
-        <button className="btn" onClick={copyList}>Copy available list for WhatsApp</button>
+        <button className="btn" onClick={copyList}>{t("Copy available list for WhatsApp")}</button>
       </div>
       <div className="legend" style={{ marginBottom: 18 }}>
-        <span><i className="s-AVAILABLE" />Available</span><span><i className="s-OCCUPIED" />Occupied</span>
-        <span><i className="s-RESERVED" />Reserved</span><span><i className="s-NOT_READY" />Not ready</span>
-        <span className="faint">Occupancy {t.spaces ? Math.round((t.occupied / t.spaces) * 100) : 0}%</span>
+        <span><i className="s-AVAILABLE" />{t("Available")}</span><span><i className="s-OCCUPIED" />{t("Occupied")}</span>
+        <span><i className="s-RESERVED" />{t("Reserved")}</span><span><i className="s-NOT_READY" />{t("Not ready")}</span>
+        <span className="faint">{t("Occupancy")} {tx.spaces ? Math.round((tx.occupied / tx.spaces) * 100) : 0}%</span>
       </div>
 
       {data.buildings.length === 0 && (
-        <Empty icon="▦" title="No partition apartments yet" action={<Link className="btn btn-primary" to="/import">Import from your sheet</Link>}>
-          Add apartments under Apartments (set "How it is rented" to Partitions), or import your availability sheet.
+        <Empty icon="▦" title={t("No partition apartments yet")} action={<Link className="btn btn-primary" to="/import">{t("Import from your sheet")}</Link>}>
+          {t("Add apartments under Apartments (set \"How it is rented\" to Partitions), or import your availability sheet.")}
         </Empty>
       )}
 
@@ -94,7 +95,7 @@ export default function PartitionsPage() {
               return (
                 <div key={u.id} className="board-unit">
                   <div className="board-unit-head">
-                    <div><Link to={`/units/${u.id}`} className="apt" style={{ textDecoration: 'none' }}>Flat {u.number}</Link> <Badge tone={u.occupancy === 'LADIES' ? 'violet' : ''}>{L.occupancy[u.occupancy]}</Badge></div>
+                    <div><Link to={`/units/${u.id}`} className="apt" style={{ textDecoration: 'none' }}>{t("Flat")} {u.number}</Link> <Badge tone={u.occupancy === 'LADIES' ? 'violet' : ''}>{L.occupancy[u.occupancy]}</Badge></div>
                     <div className="small muted">{filter === 'ALL' ? `${occupied.length}/${u.spaces.length}` : ''}</div>
                   </div>
                   <div className="spaces">
@@ -108,7 +109,7 @@ export default function PartitionsPage() {
                     {can.write && filter === 'ALL' && (
                       <button className="space" style={{ borderStyle: 'dashed', borderColor: 'var(--line-2)', color: 'var(--text-3)' }}
                         onClick={() => setModal({ kind: 'addSpace', unit: u })}>
-                        <div className="code">+ Add</div><div className="who">partition / bed</div>
+                        <div className="code">{t("+ Add")}</div><div className="who">{t("partition / bed")}</div>
                       </button>
                     )}
                   </div>
@@ -125,21 +126,21 @@ export default function PartitionsPage() {
       )}
 
       {modal?.kind === 'text' && (
-        <FormModal title="Available list" fields={[{ name: 'text', label: 'Copy this text', type: 'textarea', full: true }]} initial={{ text: modal.text }}
-          onClose={() => setModal(null)} onSubmit={async () => setModal(null)} submitLabel="Done" />
+        <FormModal title={t("Available list")} fields={[{ name: 'text', label: t("Copy this text"), type: 'textarea', full: true }]} initial={{ text: modal.text }}
+          onClose={() => setModal(null)} onSubmit={async () => setModal(null)} submitLabel={t("Done")} />
       )}
       {modal?.kind === 'addSpace' && (
-        <FormModal title={`Add partition to Flat ${modal.unit.number}`} fields={spaceFields} onClose={() => setModal(null)}
-          onSubmit={async v => { await api.post('/spaces', { ...v, unitId: modal.unit.id }); toast('Partition added'); setModal(null); reload(); }} />
+        <FormModal title={t("Add partition to Flat {0}", [modal.unit.number])} fields={spaceFields} onClose={() => setModal(null)}
+          onSubmit={async v => { await api.post('/spaces', { ...v, unitId: modal.unit.id }); toast(t("Partition added")); setModal(null); reload(); }} />
       )}
       {modal?.kind === 'editSpace' && (
-        <FormModal title={`Edit ${modal.space.code}`} fields={spaceFields.map(f => f.name === 'status' && modal.space.status === 'OCCUPIED' ? { ...f, options: Object.entries(L.spaceStatus).map(([value, label]) => ({ value, label })) } : f)}
+        <FormModal title={t("Edit {0}", [modal.space.code])} fields={spaceFields.map(f => f.name === 'status' && modal.space.status === 'OCCUPIED' ? { ...f, options: Object.entries(L.spaceStatus).map(([value, label]) => ({ value, label })) } : f)}
           initial={{ ...modal.space, availableFrom: isoDay(modal.space.availableFrom) }} onClose={() => setModal(null)}
-          onDelete={modal.space.lease ? undefined : async () => { await api.del(`/spaces/${modal.space.id}`); toast('Removed'); setModal(null); setOpen(null); reload(); }}
-          onSubmit={async v => { await api.patch(`/spaces/${modal.space.id}`, v); toast('Saved'); setModal(null); setOpen(null); reload(); }} />
+          onDelete={modal.space.lease ? undefined : async () => { await api.del(`/spaces/${modal.space.id}`); toast(t("Removed")); setModal(null); setOpen(null); reload(); }}
+          onSubmit={async v => { await api.patch(`/spaces/${modal.space.id}`, v); toast(t("Saved")); setModal(null); setOpen(null); reload(); }} />
       )}
       {modal?.kind === 'moveIn' && (
-        <FormModal title={`Move in — Flat ${modal.unit.number} ${modal.space.code}`} wide
+        <FormModal title={t("Move in — Flat {0} {1}", [modal.unit.number, modal.space.code])} wide
           fields={leaseFields({ tenants: tenants.data, fixedUnit: modal.unit, fixedSpace: modal.space })}
           initial={{ rent: modal.space.monthlyRate, deposit: modal.space.deposit }}
           onClose={() => setModal(null)}
@@ -148,71 +149,71 @@ export default function PartitionsPage() {
             if (tenantId === '__new') tenantId = (await api.post('/tenants', { name: v.newName, phone: v.newPhone })).id;
             const { newName, newPhone, ...rest } = v;
             await api.post('/leases', { ...rest, tenantId, unitId: modal.unit.id, spaceId: modal.space.id });
-            toast('Tenant moved in'); setModal(null); setOpen(null); reload();
+            toast(t("Tenant moved in")); setModal(null); setOpen(null); reload();
           }} />
       )}
       {modal?.kind === 'pay' && (
-        <FormModal title={`Record payment — ${modal.space.lease.tenant.name}`}
+        <FormModal title={t("Record payment — {0}", [modal.space.lease.tenant.name])}
           fields={transactionFields({ units: units.data, preset: { type: 'INCOME', category: 'RENT', unitId: modal.unit.id, spaceId: modal.space.id, description: 'Rent collection', periodMonth: monthKey() } }).filter(f => !['type', 'unitId', 'spaceId'].includes(f.name))}
           initial={{ amount: modal.space.lease.rent }}
           onClose={() => setModal(null)}
-          onSubmit={async v => { await api.post('/transactions', { ...v, type: 'INCOME', leaseId: modal.space.lease.id }); toast('Payment recorded'); setModal(null); }} />
+          onSubmit={async v => { await api.post('/transactions', { ...v, type: 'INCOME', leaseId: modal.space.lease.id }); toast(t("Payment recorded")); setModal(null); }} />
       )}
       {modal?.kind === 'moveOut' && (
-        <FormModal title={`Move out — ${modal.space.lease.tenant.name}`}
-          intro={<p className="small muted" style={{ marginBottom: 12 }}>Ends the tenancy and marks {modal.space.code} as available. Deposit held: {money(modal.space.lease.depositPaid)}.</p>}
+        <FormModal title={t("Move out — {0}", [modal.space.lease.tenant.name])}
+          intro={<p className="small muted" style={{ marginBottom: 12 }}>{t("Ends the tenancy and marks")} {modal.space.code} {t("as available. Deposit held:")} {money(modal.space.lease.depositPaid)}.</p>}
           fields={[
-            { name: 'endDate', label: 'Move-out date', type: 'date', required: true, default: today() },
-            { name: 'refund', label: 'Deposit refunded (AED)', type: 'number', default: modal.space.lease.depositPaid },
-            { name: 'method', label: 'Refunded by', type: 'select', required: true, options: Object.entries(L.method).map(([value, label]) => ({ value, label })), default: 'CASH' },
+            { name: 'endDate', label: t("Move-out date"), type: 'date', required: true, default: today() },
+            { name: 'refund', label: t("Deposit refunded (AED)"), type: 'number', default: modal.space.lease.depositPaid },
+            { name: 'method', label: t("Refunded by"), type: 'select', required: true, options: Object.entries(L.method).map(([value, label]) => ({ value, label })), default: 'CASH' },
           ]}
-          submitLabel="Move out" onClose={() => setModal(null)}
-          onSubmit={async v => { await api.post(`/leases/${modal.space.lease.id}/end`, v); toast('Moved out'); setModal(null); setOpen(null); reload(); }} />
+          submitLabel={t("Move out")} onClose={() => setModal(null)}
+          onSubmit={async v => { await api.post(`/leases/${modal.space.lease.id}/end`, v); toast(t("Moved out")); setModal(null); setOpen(null); reload(); }} />
       )}
     </>
   );
 }
 
-const num0 = n => `AED ${Number(n || 0).toLocaleString()}`;
+const num0 = n => money(Number(n || 0));
 
 function SpaceDrawer({ space, unit, building, onClose, onAction, canWrite }) {
   const lease = space.lease;
   return (
-    <Drawer title={`Flat ${unit.number} · ${space.code}`} subtitle={`${building.name} · ${L.spaceKind[space.kind]} · ${L.occupancy[unit.occupancy]}`} onClose={onClose}
-      actions={canWrite && <button className="btn btn-sm" onClick={() => onAction('editSpace')}>Edit</button>}>
+    <Drawer title={t("Flat {0} · {1}", [unit.number, space.code])} subtitle={`${building.name} · ${L.spaceKind[space.kind]} · ${L.occupancy[unit.occupancy]}`} onClose={onClose}
+      actions={canWrite && <button className="btn btn-sm" onClick={() => onAction('editSpace')}>{t("Edit")}</button>}>
       <div className="row" style={{ marginBottom: 16 }}><Badge value={space.status} map={L.spaceStatus} /></div>
       <dl className="kv">
-        <dt>Listed rent</dt><dd className="bold">{money(space.monthlyRate)} / month</dd>
-        <dt>Deposit</dt><dd>{money(space.deposit)}</dd>
-        <dt>Persons</dt><dd>{space.capacity}</dd>
-        {space.amenities && <><dt>Features</dt><dd>{space.amenities}</dd></>}
-        {space.availableFrom && space.status !== 'OCCUPIED' && <><dt>Available from</dt><dd>{date(space.availableFrom)}</dd></>}
-        {space.notes && <><dt>Notes</dt><dd>{space.notes}</dd></>}
+        <dt>{t("Listed rent")}</dt><dd className="bold">{money(space.monthlyRate)} {t("/ month")}</dd>
+        <dt>{t("Deposit")}</dt><dd>{money(space.deposit)}</dd>
+        <dt>{t("Persons")}</dt><dd>{space.capacity}</dd>
+        {space.amenities && <><dt>{t("Features")}</dt><dd>{space.amenities}</dd></>}
+        {space.availableFrom && space.status !== 'OCCUPIED' && <><dt>{t("Available from")}</dt><dd>{date(space.availableFrom)}</dd></>}
+        {space.notes && <><dt>{t("Notes")}</dt><dd>{space.notes}</dd></>}
       </dl>
 
-      <div className="section-title">Tenant</div>
+      <div className="section-title">{t("Tenant")}</div>
       {lease ? (
         <>
           <dl className="kv">
-            <dt>Name</dt><dd className="bold">{lease.tenant.name}</dd>
-            {lease.tenant.phone && <><dt>Phone</dt><dd><a href={`https://wa.me/${lease.tenant.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer">{lease.tenant.phone}</a></dd></>}
-            <dt>Since</dt><dd>{date(lease.startDate)}</dd>
-            {lease.endDate && <><dt>Until</dt><dd>{date(lease.endDate)}</dd></>}
-            <dt>Rent</dt><dd>{money(lease.rent)} · due on day {lease.dueDay}</dd>
-            <dt>Deposit held</dt><dd>{money(lease.depositPaid)} of {money(lease.deposit)}</dd>
-            {lease.broker && <><dt>Broker</dt><dd>{lease.broker}</dd></>}
+            <dt>{t("Name")}</dt><dd className="bold">{lease.tenant.name}</dd>
+            {lease.tenant.phone && <><dt>{t("Phone")}</dt><dd><a href={`https://wa.me/${lease.tenant.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" dir="ltr">{lease.tenant.phone}</a></dd></>}
+            <dt>{t("Since")}</dt><dd>{date(lease.startDate)}</dd>
+            {lease.endDate && <><dt>{t("Until")}</dt><dd>{date(lease.endDate)}</dd></>}
+            <dt>{t("Rent")}</dt><dd>{money(lease.rent)} {t("· due on day")} {lease.dueDay}</dd>
+            <dt>{t("Deposit held")}</dt><dd>{money(lease.depositPaid)} {t("of")} {money(lease.deposit)}</dd>
+            {lease.broker && <><dt>{t("Broker")}</dt><dd>{lease.broker}</dd></>}
           </dl>
           {canWrite && (
             <div className="row wrap" style={{ marginTop: 16 }}>
-              <button className="btn btn-primary" onClick={() => onAction('pay')}>Record payment</button>
-              <button className="btn btn-danger" onClick={() => onAction('moveOut')}>Move out</button>
+              <button className="btn btn-primary" onClick={() => onAction('pay')}>{t("Record payment")}</button>
+              <button className="btn btn-danger" onClick={() => onAction('moveOut')}>{t("Move out")}</button>
             </div>
           )}
         </>
       ) : (
         <>
-          <p className="small muted">Nobody lives here right now.</p>
-          {canWrite && space.status !== 'NOT_READY' && <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={() => onAction('moveIn')}>Move a tenant in</button>}
+          <p className="small muted">{t("Nobody lives here right now.")}</p>
+          {canWrite && space.status !== 'NOT_READY' && <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={() => onAction('moveIn')}>{t("Move a tenant in")}</button>}
         </>
       )}
     </Drawer>

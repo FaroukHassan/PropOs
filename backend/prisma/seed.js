@@ -20,8 +20,8 @@ const thisMonth = (day, offset = 0) => new Date(Date.UTC(today.getUTCFullYear(),
 async function main() {
   const org = await prisma.org.upsert({
     where: { slug: 'sakanly' },
-    update: {},
-    create: { name: 'Sakanly Stay Holiday Homes', slug: 'sakanly', currency: 'AED' },
+    update: { name: 'Sakanly Real Estate' },
+    create: { name: 'Sakanly Real Estate', slug: 'sakanly', currency: 'AED' },
   });
 
   for (const member of TEAM) {

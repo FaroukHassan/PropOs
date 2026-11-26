@@ -1,6 +1,6 @@
 # PropOS — Sakanly edition
 
-The operating system for **Sakanly Stay Holiday Homes**: partitions and bed-spaces, holiday homes, long-term lets, rent collection, cheques, landlords and owner statements in one place. Built for the internal team (Farouk, Mohamed Khalil, Ahmed Fawzy).
+The operating system for **Sakanly Real Estate**: partitions and bed-spaces, holiday homes, long-term lets, rent collection, cheques, landlords and owner statements in one place. Built for the internal team (Farouk, Mohamed Khalil, Ahmed Fawzy).
 
 | | |
 |---|---|

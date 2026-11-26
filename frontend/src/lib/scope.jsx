@@ -1,6 +1,7 @@
 // frontend/src/lib/scope.jsx — the app-wide apartment filter in the top bar.
 // Pick an apartment (or a whole building) once and every screen shows only that:
 // dashboard, partitions, rent, income & expenses, cheques, bookings, tenants, maintenance and reports.
+import { t } from './i18n';
 import { createContext, useContext, useMemo } from 'react';
 import { useSticky, useApi } from './hooks';
 import { qs } from './api';
@@ -24,7 +25,7 @@ export function ScopeProvider({ children }) {
       // add the filter to an API path: scoped('/cheques', { direction }) → /cheques?direction=OUT&unitId=…
       scoped: (path, extra = {}) => `${path}${qs({ ...extra, ...params })}`,
       inScope: u => !value || (kind === 'u' ? u.id === id : u.buildingId === id),
-      label: unit ? `${unit.building?.name} · ${unit.number}` : building ? `${building.name} (all)` : 'All apartments',
+      label: unit ? `${unit.building?.name} · ${unit.number}` : building ? t("{0} (all)", [building.name]) : t("All apartments"),
       short: unit ? `Flat ${unit.number}` : building ? building.name : '',
       refetchUnits: units.refetch,
     };
@@ -38,22 +39,22 @@ export const useScope = () => useContext(ScopeCtx);
 export function ScopePicker() {
   const s = useScope();
   const byBuilding = {};
-  for (const u of s.units) (byBuilding[u.buildingId] ||= { name: u.building?.name || 'Building', units: [] }).units.push(u);
+  for (const u of s.units) (byBuilding[u.buildingId] ||= { name: u.building?.name || t('Building'), units: [] }).units.push(u);
   const groups = Object.entries(byBuilding).sort((a, b) => a[1].name.localeCompare(b[1].name));
   return (
     <div className={`scope-picker ${s.active ? 'on' : ''}`}>
       <span className="scope-icon" aria-hidden>⌂</span>
-      <select value={s.value} onChange={e => s.set(e.target.value)} aria-label="Show apartment">
-        <option value="">All apartments</option>
+      <select value={s.value} onChange={e => s.set(e.target.value)} aria-label={t("Show apartment")}>
+        <option value="">{t("All apartments")}</option>
         {groups.map(([bid, g]) => (
           <optgroup key={bid} label={g.name}>
-            <option value={`b:${bid}`}>All of {g.name}</option>
+            <option value={`b:${bid}`}>{t("All of")} {g.name}</option>
             {g.units.slice().sort((a, b) => a.number.localeCompare(b.number, undefined, { numeric: true }))
-              .map(u => <option key={u.id} value={`u:${u.id}`}>Flat {u.number}</option>)}
+              .map(u => <option key={u.id} value={`u:${u.id}`}>{t("Flat")} {u.number}</option>)}
           </optgroup>
         ))}
       </select>
-      {s.active && <button className="scope-clear" onClick={s.clear} aria-label="Show all apartments">✕</button>}
+      {s.active && <button className="scope-clear" onClick={s.clear} aria-label={t("Show all apartments")}>✕</button>}
     </div>
   );
 }

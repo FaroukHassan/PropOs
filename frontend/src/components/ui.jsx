@@ -1,4 +1,5 @@
 // frontend/src/components/ui.jsx — shared building blocks
+import { t, isAr } from '../lib/i18n';
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { L, TONE, monthLabel, shiftMonth } from '../lib/format';
 
@@ -21,15 +22,15 @@ export function ToastProvider({ children }) {
   return (
     <ToastCtx.Provider value={push}>
       {children}
-      <div className="toasts">{items.map(t => <div key={t.id} className={`toast ${t.kind}`}>{t.msg}</div>)}</div>
+      <div className="toasts">{items.map(tx => <div key={tx.id} className={`toast ${tx.kind}`}>{tx.msg}</div>)}</div>
     </ToastCtx.Provider>
   );
 }
 
 // ─── Badges ──────────────────────────────────────────────────────────────────
 export function Badge({ value, map, tone, children }) {
-  const t = tone ?? TONE[value] ?? '';
-  return <span className={`badge ${t ? `b-${t}` : ''}`}>{children ?? (map ? map[value] : value) ?? value}</span>;
+  const tx = tone ?? TONE[value] ?? '';
+  return <span className={`badge ${tx ? `b-${tx}` : ''}`}>{children ?? (map ? map[value] : value) ?? value}</span>;
 }
 
 // ─── Modal & drawer ──────────────────────────────────────────────────────────
@@ -46,7 +47,7 @@ export function Modal({ title, onClose, children, footer, wide }) {
   return (
     <div className="overlay" onMouseDown={e => e.target === e.currentTarget && onClose()}>
       <div className={`modal ${wide ? 'wide' : ''}`} role="dialog" aria-label={title}>
-        <div className="modal-head"><h2>{title}</h2><button className="btn btn-ghost btn-icon" onClick={onClose} aria-label="Close">✕</button></div>
+        <div className="modal-head"><h2>{title}</h2><button className="btn btn-ghost btn-icon" onClick={onClose} aria-label={t("Close")}>✕</button></div>
         <div className="modal-body">{children}</div>
         {footer && <div className="modal-foot">{footer}</div>}
       </div>
@@ -62,7 +63,7 @@ export function Drawer({ title, subtitle, onClose, children, actions }) {
       <aside className="drawer">
         <div className="drawer-head">
           <div><div className="page-title">{title}</div>{subtitle && <div className="small muted">{subtitle}</div>}</div>
-          <div className="row">{actions}<button className="btn btn-ghost btn-icon" onClick={onClose} aria-label="Close">✕</button></div>
+          <div className="row">{actions}<button className="btn btn-ghost btn-icon" onClick={onClose} aria-label={t("Close")}>✕</button></div>
         </div>
         <div className="drawer-body">{children}</div>
       </aside>
@@ -72,7 +73,7 @@ export function Drawer({ title, subtitle, onClose, children, actions }) {
 
 // ─── Form built from a field list ────────────────────────────────────────────
 // fields: [{ name, label, type: text|number|date|select|textarea|checkbox, options, required, hint, full, show(values) }]
-export function FormModal({ title, fields, initial = {}, onSubmit, onClose, submitLabel = 'Save', onDelete, wide, intro }) {
+export function FormModal({ title, fields, initial = {}, onSubmit, onClose, submitLabel = t('Save'), onDelete, wide, intro }) {
   const [values, setValues] = useState(() => {
     const v = {};
     for (const f of fields) v[f.name] = initial[f.name] ?? f.default ?? (f.type === 'checkbox' ? false : '');
@@ -108,10 +109,10 @@ export function FormModal({ title, fields, initial = {}, onSubmit, onClose, subm
   return (
     <Modal title={title} onClose={onClose} wide={wide}
       footer={<>
-        {onDelete && <button type="button" className="btn btn-danger" style={{ marginRight: 'auto' }} disabled={busy}
-          onClick={async () => { if (!confirm('Delete this permanently?')) return; setBusy(true); try { await onDelete(); } catch (e) { setError(e.message); setBusy(false); } }}>Delete</button>}
-        <button type="button" className="btn" onClick={onClose}>Cancel</button>
-        <button type="submit" form="form-modal" className="btn btn-primary" disabled={busy}>{busy ? 'Saving…' : submitLabel}</button>
+        {onDelete && <button type="button" className="btn btn-danger" style={{ marginInlineEnd: 'auto' }} disabled={busy}
+          onClick={async () => { if (!confirm(t("Delete this permanently?"))) return; setBusy(true); try { await onDelete(); } catch (e) { setError(e.message); setBusy(false); } }}>{t("Delete")}</button>}
+        <button type="button" className="btn" onClick={onClose}>{t("Cancel")}</button>
+        <button type="submit" form="form-modal" className="btn btn-primary" disabled={busy}>{busy ? t("Saving…") : submitLabel}</button>
       </>}>
       {intro}
       {error && <div className="alert alert-error">{error}</div>}
@@ -141,9 +142,9 @@ export function FormModal({ title, fields, initial = {}, onSubmit, onClose, subm
 }
 
 // ─── Small pieces ────────────────────────────────────────────────────────────
-export const Spinner = () => <div className="loading">Loading…</div>;
+export const Spinner = () => <div className="loading">{t("Loading…")}</div>;
 export const ErrorBox = ({ error, retry }) => (
-  <div className="alert alert-error row-between"><span>{error}</span>{retry && <button className="btn btn-sm" onClick={retry}>Try again</button>}</div>
+  <div className="alert alert-error row-between"><span>{error}</span>{retry && <button className="btn btn-sm" onClick={retry}>{t("Try again")}</button>}</div>
 );
 export function Empty({ icon = '📭', title, children, action }) {
   return <div className="empty"><div className="icon">{icon}</div><h3>{title}</h3>{children && <p className="small">{children}</p>}{action && <div style={{ marginTop: 14 }}>{action}</div>}</div>;
@@ -161,9 +162,9 @@ export function Stat({ label, value, sub, progress, accent }) {
 export function MonthPicker({ value, onChange }) {
   return (
     <div className="month-picker">
-      <button className="btn btn-sm btn-icon" onClick={() => onChange(shiftMonth(value, -1))} aria-label="Previous month">‹</button>
+      <button className="btn btn-sm btn-icon" onClick={() => onChange(shiftMonth(value, -1))} aria-label={t("Previous month")}>{isAr ? '›' : '‹'}</button>
       <span className="label">{monthLabel(value)}</span>
-      <button className="btn btn-sm btn-icon" onClick={() => onChange(shiftMonth(value, 1))} aria-label="Next month">›</button>
+      <button className="btn btn-sm btn-icon" onClick={() => onChange(shiftMonth(value, 1))} aria-label={t("Next month")}>{isAr ? '‹' : '›'}</button>
     </div>
   );
 }

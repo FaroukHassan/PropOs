@@ -5,7 +5,7 @@ let data = {};
 let loaded;
 const load = () => (loaded ||= fetch(`${import.meta.env.BASE_URL}demo-data.json`).then(r => r.json()).then(d => { data = d; }));
 
-const DEMO_USER = { id: 'demo', name: 'Farouk Hassan', email: 'farouk@sakanly.com', role: 'ADMIN', org: { name: 'Sakanly Stay Holiday Homes', currency: 'AED' } };
+const DEMO_USER = { id: 'demo', name: 'Farouk Hassan', email: 'farouk@sakanly.com', role: 'ADMIN', org: { name: 'Sakanly Real Estate', currency: 'AED' } };
 const FILTERABLE = ['mode', 'unitId', 'spaceId', 'direction', 'status', 'type', 'category', 'buildingId', 'leaseId', 'landlordId'];
 
 function parse(path) {

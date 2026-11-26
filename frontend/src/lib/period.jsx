@@ -2,6 +2,7 @@
 // One period is shared by the dashboard, rent collection, income & expenses, reports, bookings,
 // owner statements and apartment pages. Presets ("This month", "Last quarter"…) roll forward on
 // their own; ‹ › step to the previous/next period; "Custom" takes any two dates.
+import { t, locale, isAr } from './i18n';
 import { createContext, useContext, useMemo, useState, useEffect, useRef } from 'react';
 import { useSticky } from './hooks';
 
@@ -19,7 +20,7 @@ export const PRESETS = [
   ['Weeks & months', [['this_week', 'This week'], ['last_week', 'Last week'], ['this_month', 'This month'], ['last_month', 'Last month'], ['next_month', 'Next month']]],
   ['Quarters & years', [['this_quarter', 'This quarter'], ['last_quarter', 'Last quarter'], ['ytd', 'Year to date'], ['this_year', 'This year'], ['last_year', 'Last year'], ['last_12m', 'Last 12 months']]],
 ];
-const PRESET_LABEL = Object.fromEntries(PRESETS.flatMap(([, items]) => items));
+const PRESET_LABEL = Object.fromEntries(PRESETS.flatMap(([, items]) => items).map(([k, v]) => [k, t(v)]));
 
 export function presetRange(key, now = todayUtc()) {
   const y = now.getUTCFullYear(), m = now.getUTCMonth(), q = Math.floor(m / 3) * 3;
@@ -44,7 +45,7 @@ export function presetRange(key, now = todayUtc()) {
   }
 }
 
-const fmt = (d, opts) => d.toLocaleDateString('en-GB', { timeZone: 'UTC', ...opts });
+const fmt = (d, opts) => d.toLocaleDateString(locale, { timeZone: 'UTC', ...opts });
 const isMonthStart = d => d.getUTCDate() === 1;
 const isMonthEnd = d => addDays(d, 1).getUTCDate() === 1;
 const monthsSpan = (a, b) => (b.getUTCFullYear() - a.getUTCFullYear()) * 12 + b.getUTCMonth() - a.getUTCMonth() + 1;
@@ -56,7 +57,7 @@ export function describe(from, to) {
   if (isMonthStart(a) && isMonthEnd(b)) {
     const n = monthsSpan(a, b);
     if (n === 1) return fmt(a, { month: 'long', year: 'numeric' });
-    if (n === 3 && a.getUTCMonth() % 3 === 0) return `Q${a.getUTCMonth() / 3 + 1} ${a.getUTCFullYear()}`;
+    if (n === 3 && a.getUTCMonth() % 3 === 0) return t('Q{0} {1}', [a.getUTCMonth() / 3 + 1, a.getUTCFullYear()]);
     if (n === 12 && a.getUTCMonth() === 0) return String(a.getUTCFullYear());
     return a.getUTCFullYear() === b.getUTCFullYear()
       ? `${fmt(a, { month: 'short' })} – ${fmt(b, { month: 'short', year: 'numeric' })}`
@@ -93,11 +94,11 @@ export function PeriodProvider({ children }) {
       // set when the period is exactly one calendar month (some screens show monthly figures)
       month: singleMonth ? from.slice(0, 7) : null,
       label: describe(from, to),
-      presetLabel: state.preset === 'custom' ? 'Custom' : PRESET_LABEL[state.preset],
+      presetLabel: state.preset === 'custom' ? t('Custom') : PRESET_LABEL[state.preset],
       params: { from, to },
       setPreset: preset => setState({ preset }),
-      setCustom: (f, t) => setState({ preset: 'custom', from: f <= t ? f : t, to: f <= t ? t : f }),
-      step: dir => { const [f, t] = stepRange(from, to, dir); setState({ preset: 'custom', from: f, to: t }); },
+      setCustom: (f, tx) => setState({ preset: 'custom', from: f <= tx ? f : tx, to: f <= tx ? tx : f }),
+      step: dir => { const [f, tx] = stepRange(from, to, dir); setState({ preset: 'custom', from: f, to: tx }); },
     };
   }, [state, setState]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
@@ -123,36 +124,36 @@ export function PeriodPicker() {
 
   return (
     <div className="period" ref={ref}>
-      <button className="btn btn-sm btn-icon" onClick={() => p.step(-1)} aria-label="Previous period">‹</button>
+      <button className="btn btn-sm btn-icon" onClick={() => p.step(-1)} aria-label={t("Previous period")}>{isAr ? '›' : '‹'}</button>
       <button className={`btn btn-sm period-btn ${open ? 'on' : ''}`} onClick={() => setOpen(o => !o)} aria-expanded={open}>
         <span className="period-cal" aria-hidden>▦</span>
         <span className="period-text"><span className="period-preset">{p.preset === 'custom' ? '' : `${p.presetLabel} · `}</span><b>{p.label}</b></span>
         <span className="period-caret" aria-hidden>▾</span>
       </button>
-      <button className="btn btn-sm btn-icon" onClick={() => p.step(1)} aria-label="Next period">›</button>
+      <button className="btn btn-sm btn-icon" onClick={() => p.step(1)} aria-label={t("Next period")}>{isAr ? '‹' : '›'}</button>
       {open && <>
         <div className="period-backdrop" onClick={() => setOpen(false)} />
-        <div className="period-pop" role="dialog" aria-label="Choose dates">
-          <div className="period-pop-head"><b>Date range</b><button className="btn btn-ghost btn-icon btn-sm" onClick={() => setOpen(false)} aria-label="Close">✕</button></div>
+        <div className="period-pop" role="dialog" aria-label={t("Choose dates")}>
+          <div className="period-pop-head"><b>{t("Date range")}</b><button className="btn btn-ghost btn-icon btn-sm" onClick={() => setOpen(false)} aria-label={t("Close")}>✕</button></div>
           <div className="period-presets">
             {PRESETS.map(([group, items]) => (
               <div key={group}>
-                <div className="period-group">{group}</div>
+                <div className="period-group">{t(group)}</div>
                 {items.map(([k, label]) => (
                   <button key={k} className={p.preset === k ? 'on' : ''} onClick={() => { p.setPreset(k); setOpen(false); }}>
-                    <span>{label}</span><span className="faint tiny">{describe(...presetRange(k).map(iso))}</span>
+                    <span>{t(label)}</span><span className="faint tiny">{describe(...presetRange(k).map(iso))}</span>
                   </button>
                 ))}
               </div>
             ))}
           </div>
           <form className="period-custom" onSubmit={e => { e.preventDefault(); if (from && to) { p.setCustom(from, to); setOpen(false); } }}>
-            <div className="period-group">Custom range</div>
+            <div className="period-group">{t("Custom range")}</div>
             <div className="row">
-              <label className="grow"><span className="tiny faint">From</span><input className="input input-sm" type="date" value={from} onChange={e => setFrom(e.target.value)} required /></label>
-              <label className="grow"><span className="tiny faint">To</span><input className="input input-sm" type="date" value={to} onChange={e => setTo(e.target.value)} required /></label>
+              <label className="grow"><span className="tiny faint">{t("From")}</span><input className="input input-sm" type="date" value={from} onChange={e => setFrom(e.target.value)} required /></label>
+              <label className="grow"><span className="tiny faint">{t("To")}</span><input className="input input-sm" type="date" value={to} onChange={e => setTo(e.target.value)} required /></label>
             </div>
-            <button className="btn btn-primary btn-sm" type="submit">Apply</button>
+            <button className="btn btn-primary btn-sm" type="submit">{t("Apply")}</button>
           </form>
         </div>
       </>}

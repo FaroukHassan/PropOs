@@ -1,7 +1,7 @@
 {
-  "name": "Sakanly PropOS",
+  "name": "Sakanly Real Estate · PropOS",
   "short_name": "PropOS",
-  "description": "Sakanly Stay operations: partitions, rent, cheques and holiday homes.",
+  "description": "Sakanly Real Estate operations: partitions, rent, cheques and holiday homes.",
   "start_url": "./#/dashboard",
   "scope": "./",
   "display": "standalone",
