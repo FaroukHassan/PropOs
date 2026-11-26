@@ -112,14 +112,14 @@ const bookings = express.Router();
 
 bookings.get('/', ah(async (req, res) => {
   const where = { orgId: req.user.orgId };
-  for (const f of ['unitId', 'status', 'channel']) if (req.query[f]) where[f] = req.query[f];
+  for (const f of ['unitId', 'spaceId', 'status', 'channel']) if (req.query[f]) where[f] = req.query[f];
   if (req.query.from || req.query.to) {
     // bookings that overlap the window
     if (req.query.to) where.checkIn = { lt: new Date(req.query.to) };
     if (req.query.from) where.checkOut = { gt: new Date(req.query.from) };
   }
   const rows = await prisma.booking.findMany({
-    where, include: { unit: { include: { building: true } } }, orderBy: { checkIn: 'asc' },
+    where, include: { unit: { include: { building: true } }, space: true }, orderBy: { checkIn: 'asc' },
   });
   res.json(rows.map(b => ({ ...b, nights: nights(b.checkIn, b.checkOut), net: b.totalAmount - b.channelFee })));
 }));
@@ -128,26 +128,37 @@ crudRouter({
   router: bookings,
   model: 'booking',
   spec: {
-    unitId: { type: 'id', required: true }, guestName: { type: 'string', required: true },
+    unitId: { type: 'id', required: true }, spaceId: 'id', guestName: { type: 'string', required: true },
     guestPhone: 'string', guests: 'int', channel: 'enum', reference: 'string',
     checkIn: { type: 'date', required: true }, checkOut: { type: 'date', required: true },
     totalAmount: { type: 'number', required: true }, channelFee: 'number', cleaningFee: 'number',
     tourismFee: 'number', status: 'enum', notes: 'string',
   },
-  include: { unit: { include: { building: true } }, transactions: true },
+  include: { unit: { include: { building: true } }, space: true, transactions: true },
   beforeSave: async (data, req, existing) => {
     const unitId = data.unitId || existing.unitId;
+    const spaceId = data.spaceId !== undefined ? data.spaceId : existing?.spaceId;
     const checkIn = data.checkIn || existing.checkIn;
     const checkOut = data.checkOut || existing.checkOut;
     const status = data.status || existing?.status || 'CONFIRMED';
     if (checkOut <= checkIn) throw new HttpError(422, 'Check-out must be after check-in');
     const unit = await prisma.unit.findUnique({ where: { id: unitId } });
-    if (unit.mode !== 'HOLIDAY') throw new HttpError(422, 'Bookings can only be added to holiday-home units');
+    if (spaceId) {
+      // A partition can be let as a holiday stay (e.g. Azizi Riviera 920, or a partition reserved for holiday use)
+      const space = await prisma.space.findUnique({ where: { id: spaceId } });
+      if (space.unitId !== unitId) throw new HttpError(422, 'That partition is not in this apartment');
+      const tenant = await prisma.lease.findFirst({ where: { spaceId, status: { in: ['ACTIVE', 'NOTICE'] } }, include: { tenant: true } });
+      if (tenant) throw new HttpError(409, `${space.code} has a monthly tenant (${tenant.tenant.name})`);
+    } else if (unit.mode !== 'HOLIDAY') {
+      throw new HttpError(422, 'Choose a partition, or make the apartment a holiday home');
+    }
     if (!['CANCELLED', 'INQUIRY'].includes(status)) {
+      // Whole-apartment bookings clash with everything in that apartment; partition bookings clash with the same partition or a whole-apartment booking
       const clash = await prisma.booking.findFirst({
         where: {
           unitId, status: { notIn: ['CANCELLED', 'INQUIRY'] },
           checkIn: { lt: checkOut }, checkOut: { gt: checkIn },
+          ...(spaceId ? { OR: [{ spaceId }, { spaceId: null }] } : {}),
           ...(existing ? { id: { not: existing.id } } : {}),
         },
       });

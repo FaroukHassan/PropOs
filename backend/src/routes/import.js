@@ -7,6 +7,7 @@ const prisma = require('../db');
 const { ah, HttpError } = require('../middleware/errorHandler');
 const { startOfDay, monthKey } = require('../lib/dates');
 
+const start0 = d => d || startOfDay();
 const norm = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
 const ALIASES = {
@@ -36,6 +37,7 @@ const ALIASES = {
   tenant: ['tenantname', 'tenant', 'name', 'occupant'],
   from: ['from', 'startdate', 'movein', 'start'],
   to: ['to', 'enddate', 'until'],
+  isNew: ['new', 'newtenant'],
 };
 
 function getter(row) {
@@ -109,7 +111,7 @@ const statusOf = s => {
 };
 
 const CATEGORY_MAP = {
-  rent: 'RENT', rentcollection: 'RENT', deposit: 'DEPOSIT', booking: 'BOOKING',
+  rent: 'RENT', rentcollection: 'RENT', deposit: 'DEPOSIT', booking: 'BOOKING', leasing: 'LEASING_COMMISSION', leasingcommission: 'LEASING_COMMISSION', deals: 'LEASING_COMMISSION',
   rentpaid: 'RENT_PAID', landlord: 'RENT_PAID', dewa: 'DEWA', electricity: 'DEWA',
   internet: 'INTERNET', telecom: 'INTERNET', du: 'INTERNET', etisalat: 'INTERNET',
   maintenance: 'MAINTENANCE', repairs: 'MAINTENANCE', cleaning: 'CLEANING',
@@ -195,7 +197,7 @@ router.post('/', ah(async (req, res) => {
       const type = /inc|in$|receiv/.test(typeRaw) ? 'INCOME' : /exp|out|paid/.test(typeRaw) ? 'EXPENSE' : null;
       if (!date || !amount || !type) { result.skipped.push({ row: i + 2, reason: 'Needs a date, type (INCOME/EXPENSE) and amount' }); continue; }
       let category = CATEGORY_MAP[norm(g('category'))] || (type === 'INCOME' ? 'OTHER_INCOME' : 'OTHER_EXPENSE');
-      const incomeCats = ['RENT', 'DEPOSIT', 'BOOKING', 'OTHER_INCOME'];
+      const incomeCats = ['RENT', 'DEPOSIT', 'BOOKING', 'LEASING_COMMISSION', 'OTHER_INCOME'];
       if ((type === 'INCOME') !== incomeCats.includes(category)) category = type === 'INCOME' ? 'OTHER_INCOME' : 'OTHER_EXPENSE';
 
       let unit = null, space = null;
@@ -273,7 +275,8 @@ router.post('/', ah(async (req, res) => {
       const current = await prisma.lease.findFirst({ where: { spaceId: space.id, status: { in: ['ACTIVE', 'NOTICE'] } }, include: { tenant: true } });
       if (current && current.tenant.name === tenantName) continue; // already there
       if (current) await prisma.lease.update({ where: { id: current.id }, data: { status: 'ENDED', endDate: from || startOfDay() } });
-      const tenant = await prisma.tenant.create({ data: { orgId, name: tenantName, notes: name ? null : 'Name missing in the imported sheet' } });
+      const notes = [name ? null : 'Name missing in the imported sheet', /^(y|yes|true|1|new)$/i.test(g('isNew') || '') ? `New tenant (${monthKey(start0(from))})` : null].filter(Boolean).join(' · ') || null;
+      const tenant = await prisma.tenant.create({ data: { orgId, name: tenantName, notes } });
       const start = from || startOfDay();
       await prisma.lease.create({
         data: { orgId, tenantId: tenant.id, unitId: u.id, spaceId: space.id, startDate: start, rent: price || 0, dueDay: Math.min(28, start.getUTCDate()), status: 'ACTIVE' },

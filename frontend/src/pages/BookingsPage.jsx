@@ -16,7 +16,7 @@ export default function BookingsPage() {
   const [view, setView] = useSticky('book_view', 'calendar');
   const from = `${month}-01`;
   const to = `${shiftMonth(month, 1)}-01`;
-  const units = useApi('/units?mode=HOLIDAY');
+  const units = useApi('/units');
   const { data, loading, error, refetch } = useApi(`/bookings${qs({ from, to })}`);
   const [modal, setModal] = useState(null);
 
@@ -29,13 +29,19 @@ export default function BookingsPage() {
 
   if (error) return <ErrorBox error={error} retry={refetch} />;
   if ((loading && !data) || !units.data) return <Spinner />;
-  const homes = units.data;
+  // Bookable units: holiday flats (one row, or one row per partition) and partitions reserved for holiday use elsewhere
+  const homes = units.data.filter(u => u.mode === 'HOLIDAY' || u.spaces.some(s => s.status === 'RESERVED') || (data || []).some(b => b.unitId === u.id));
+  const rowsFor = h => {
+    const spaces = h.mode === 'HOLIDAY' ? h.spaces : h.spaces.filter(s => s.status === 'RESERVED' || (data || []).some(b => b.spaceId === s.id));
+    return spaces.length ? spaces.map(s => ({ key: s.id, label: `${h.building.name} ${h.number} · ${s.code}`, unit: h, space: s })) : [{ key: h.id, label: `${h.building.name} ${h.number}`, unit: h }];
+  };
+  const calRows = homes.flatMap(rowsFor);
   const bookings = (data || []).filter(b => b.status !== 'CANCELLED');
   const monthStart = new Date(`${from}T00:00:00Z`).getTime();
   const monthEnd = new Date(`${to}T00:00:00Z`).getTime();
   const nightsIn = b => Math.max(0, Math.round((Math.min(new Date(b.checkOut).getTime(), monthEnd) - Math.max(new Date(b.checkIn).getTime(), monthStart)) / DAY));
   const booked = bookings.filter(b => b.status !== 'INQUIRY').reduce((s, b) => s + nightsIn(b), 0);
-  const avail = homes.length * days.length;
+  const avail = calRows.length * days.length;
   const net = bookings.filter(b => b.status !== 'INQUIRY').reduce((s, b) => s + (b.net * nightsIn(b)) / Math.max(1, b.nights), 0);
 
   const save = async (v, existing) => {
@@ -53,7 +59,7 @@ export default function BookingsPage() {
       </div>
 
       {homes.length === 0 ? (
-        <Empty icon="☾" title="No holiday homes yet">Add an apartment and set "How it is rented" to Holiday home.</Empty>
+        <Empty icon="☾" title="No holiday homes yet">Add an apartment and set "How it is rented" to Holiday home, or mark a partition as Reserved to let it nightly.</Empty>
       ) : (
         <>
           <div className="grid g4" style={{ marginBottom: 16 }}>
@@ -73,10 +79,11 @@ export default function BookingsPage() {
                   return <div key={iso} className={`cal-cell cal-head ${iso === today() ? 'today' : ''} ${wd === 5 || wd === 6 ? 'weekend' : ''}`}>
                     <span>{d.toLocaleDateString('en-GB', { weekday: 'narrow', timeZone: 'UTC' })}</span><b>{d.getUTCDate()}</b></div>;
                 })}
-                {homes.map(h => (
-                  <Row key={h.id} home={h} days={days} bookings={bookings.filter(b => b.unitId === h.id)} monthStart={monthStart}
+                {calRows.map(r => (
+                  <Row key={r.key} label={r.label} days={days} monthStart={monthStart}
+                    bookings={bookings.filter(b => b.unitId === r.unit.id && (r.space ? b.spaceId === r.space.id || !b.spaceId : true))}
                     onPick={b => can.write && setModal({ booking: b })}
-                    onEmpty={d => can.write && setModal({ preset: { unitId: h.id, checkIn: d, checkOut: isoDay(new Date(new Date(d).getTime() + DAY)), totalAmount: h.nightlyRate || '' } })} />
+                    onEmpty={d => can.write && setModal({ preset: { unitId: r.unit.id, spaceId: r.space?.id || '', checkIn: d, checkOut: isoDay(new Date(new Date(d).getTime() + DAY)), totalAmount: r.unit.nightlyRate || '' } })} />
                 ))}
               </div>
               <div className="legend" style={{ padding: '10px 14px' }}>
@@ -94,7 +101,7 @@ export default function BookingsPage() {
                     {(data || []).map(b => (
                       <tr key={b.id} className="clickable" onClick={() => can.write && setModal({ booking: b })}>
                         <td className="bold">{b.guestName}<div className="tiny faint">{b.guestPhone}</div></td>
-                        <td>{b.unit.building.name} {b.unit.number}</td>
+                        <td>{b.unit.building.name} {b.unit.number}{b.space ? ` · ${b.space.code}` : ''}</td>
                         <td><span className={`badge ch-${b.channel}`}>{L.channel[b.channel]}</span></td>
                         <td>{date(b.checkIn)}</td><td>{date(b.checkOut)}</td>
                         <td className="num">{b.nights}</td><td className="num">{money(b.totalAmount)}</td><td className="num">{money(b.net)}</td>
@@ -122,14 +129,14 @@ export default function BookingsPage() {
   );
 }
 
-function Row({ home, days, bookings, monthStart, onPick, onEmpty }) {
+function Row({ label, days, bookings, monthStart, onPick, onEmpty }) {
   const taken = new Set();
   for (const b of bookings) {
     for (let t = new Date(b.checkIn).getTime(); t < new Date(b.checkOut).getTime(); t += DAY) taken.add(new Date(t).toISOString().slice(0, 10));
   }
   return (
     <>
-      <div className="cal-cell cal-unit">{home.building.name} {home.number}</div>
+      <div className="cal-cell cal-unit">{label}</div>
       {days.map((d, i) => {
         const iso = d.toISOString().slice(0, 10);
         const starting = bookings.filter(b => {

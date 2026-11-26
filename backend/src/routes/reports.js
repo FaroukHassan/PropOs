@@ -48,7 +48,9 @@ async function rentCollection(orgId, key) {
 // Holiday-home occupancy and revenue earned within a month (pro-rated by night)
 async function holidayStats(orgId, key) {
   const { start, end } = monthRange(key);
-  const units = await prisma.unit.count({ where: { orgId, mode: 'HOLIDAY', active: true } });
+  // Each bookable thing counts once: a holiday flat, or each partition of a partitioned holiday flat
+  const homes = await prisma.unit.findMany({ where: { orgId, mode: 'HOLIDAY', active: true }, include: { _count: { select: { spaces: true } } } });
+  const units = homes.reduce((n, u) => n + (u._count.spaces || 1), 0);
   const bookings = await prisma.booking.findMany({
     where: { orgId, status: { notIn: ['CANCELLED', 'INQUIRY'] }, checkIn: { lt: end }, checkOut: { gt: start } },
   });

@@ -5,7 +5,7 @@ const { crudRouter, findOwned } = require('../lib/crud');
 const { ah, HttpError } = require('../middleware/errorHandler');
 const { monthRange, startOfDay, addDays, monthKey } = require('../lib/dates');
 
-const INCOME_CATS = ['RENT', 'DEPOSIT', 'BOOKING', 'OTHER_INCOME'];
+const INCOME_CATS = ['RENT', 'DEPOSIT', 'BOOKING', 'LEASING_COMMISSION', 'OTHER_INCOME'];
 
 // ─── Transactions ────────────────────────────────────────────────────────────
 const transactions = express.Router();

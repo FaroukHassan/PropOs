@@ -68,7 +68,10 @@ def tenancies(ws):
         if not building:
             continue
         name = str(name).strip() if name else ''
+        # yellow on the tenant's name (or on the partition, when a name is there) marks a new tenant
+        is_new = bool(name) and 'yellow' in (fill(ws.cell(r, 3)), fill(ws.cell(r, 2)))
         rows.append({
+            'New': 'yes' if is_new else '',
             'Building': building, 'Flat': unit, 'Partition': str(code).strip(),
             'Tenant': name, 'From': iso(frm) or '', 'To': iso(to) or '', 'Price': price if isinstance(price, (int, float)) else '',
         })
@@ -78,6 +81,8 @@ def tenancies(ws):
 def category_for(desc, part, incoming):
     d = f'{desc} {part}'.upper()
     if incoming:
+        if 'DEAL' in d or 'COMMISSION' in d:
+            return 'LEASING'
         if 'RENT' in d or 'ايجار' in d:
             return 'RENT'
         if 'BOOKING' in d or 'DEPOSIT' in d or 'تأمين' in d:
@@ -188,6 +193,17 @@ def call(api, path, body=None, token=None):
         sys.exit(f'{path}: {e.code} {e.read().decode()[:300]}')
 
 
+def ensure_holiday_home(api, token, building, number):
+    """Azizi Riviera 920 is a holiday-home apartment let by partition; it has no rows on the month sheet."""
+    units = call(api, '/units?mode=HOLIDAY', token=token)
+    if any(u['number'] == number and u['building']['name'] == building for u in units):
+        return
+    buildings = call(api, '/buildings', token=token)
+    b = next((x for x in buildings if x['name'] == building), None) or call(api, '/buildings', {'name': building, 'area': 'Meydan (MBR City)'}, token)
+    call(api, '/units', {'buildingId': b['id'], 'number': number, 'mode': 'HOLIDAY', 'arrangement': 'MASTER_LEASE', 'occupancy': 'MIX'}, token)
+    print(f'created holiday home {building} {number} (add its partitions on the Apartments page)')
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('file')
@@ -213,6 +229,8 @@ def main():
         batches = [b for b in batches if b[0] == a.only]
 
     token = call(a.api, '/auth/login', {'email': a.email, 'password': a.password or getpass.getpass('Password: ')})['token']
+    if not a.dry_run and not a.only:
+        ensure_holiday_home(a.api, token, 'Azizi Riviera', '920')
     for kind, rows, extra in batches:
         res = call(a.api, '/import', {'kind': kind, 'rows': rows, 'dryRun': a.dry_run, **extra}, token)
         print(f'{kind:13} {len(rows):4} rows → {res["created"]} new, {res.get("updated", 0)} updated, {len(res["skipped"])} skipped'

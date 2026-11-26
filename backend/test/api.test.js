@@ -142,6 +142,30 @@ test('holiday bookings reject overlaps and non-holiday units', async () => {
   assert.equal(list[0].net, 1700);
 });
 
+test('a single partition can be booked as a holiday stay', async () => {
+  const board = (await call('GET', '/api/spaces/board')).body;
+  const unit = board.buildings[0].units[0];
+  const occupied = unit.spaces.find(s => s.status === 'OCCUPIED');
+  const free = unit.spaces.find(s => s.status !== 'OCCUPIED');
+  const a = await call('POST', '/api/bookings', { unitId: unit.id, spaceId: occupied.id, guestName: 'x', checkIn: '2027-05-01', checkOut: '2027-05-03', totalAmount: 400 });
+  assert.equal(a.status, 409, 'cannot book a partition with a monthly tenant');
+  const b = await call('POST', '/api/bookings', { unitId: unit.id, spaceId: free.id, guestName: 'Partition guest', checkIn: '2027-05-01', checkOut: '2027-05-03', totalAmount: 400 });
+  assert.equal(b.status, 201, JSON.stringify(b.body));
+  const other = unit.spaces.find(s => s.id !== free.id && s.status !== 'OCCUPIED');
+  if (other) {
+    const c = await call('POST', '/api/bookings', { unitId: unit.id, spaceId: other.id, guestName: 'Same dates other partition', checkIn: '2027-05-01', checkOut: '2027-05-03', totalAmount: 400 });
+    assert.equal(c.status, 201, 'different partitions can be booked on the same dates');
+  }
+  const d = await call('POST', '/api/bookings', { unitId: unit.id, spaceId: free.id, guestName: 'clash', checkIn: '2027-05-02', checkOut: '2027-05-04', totalAmount: 400 });
+  assert.equal(d.status, 409);
+});
+
+test('leasing commission is an income category', async () => {
+  const r = await call('POST', '/api/transactions', { date: '2026-11-05', type: 'INCOME', category: 'LEASING_COMMISSION', description: 'Deal no. 12 commission', amount: 2500 });
+  assert.equal(r.status, 201);
+  assert.equal((await call('POST', '/api/transactions', { date: '2026-11-05', type: 'EXPENSE', category: 'LEASING_COMMISSION', description: 'x', amount: 1 })).status, 422);
+});
+
 test('cheques: series, postpone, clear posts once to ledger', async () => {
   const s = await call('POST', '/api/cheques/series', { direction: 'IN', count: 4, everyMonths: 3, amount: 10000, firstDate: '2027-01-10', firstNumber: '000120', bank: 'ENBD', unitId });
   assert.equal(s.status, 201);

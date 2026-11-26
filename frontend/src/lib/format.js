@@ -50,7 +50,7 @@ export const L = {
   bookingStatus: { INQUIRY: 'Inquiry', CONFIRMED: 'Confirmed', CHECKED_IN: 'Checked in', CHECKED_OUT: 'Checked out', CANCELLED: 'Cancelled' },
   txType: { INCOME: 'Income', EXPENSE: 'Expense' },
   category: {
-    RENT: 'Rent', DEPOSIT: 'Deposit received', BOOKING: 'Holiday booking', OTHER_INCOME: 'Other income',
+    RENT: 'Rent', DEPOSIT: 'Deposit received', BOOKING: 'Holiday booking', LEASING_COMMISSION: 'Leasing commission', OTHER_INCOME: 'Other income',
     RENT_PAID: 'Rent paid to landlord', DEWA: 'DEWA', INTERNET: 'Internet & telecom', MAINTENANCE: 'Maintenance',
     CLEANING: 'Cleaning', SALARIES: 'Salaries', COMMISSION: 'Commission', DEPOSIT_REFUND: 'Deposit refund',
     LICENSE: 'Licence & fees', ADMIN: 'Admin', SECURITY: 'Security', FURNITURE: 'Furniture & setup',
@@ -65,7 +65,7 @@ export const L = {
   role: { ADMIN: 'Admin', MANAGER: 'Manager', VIEWER: 'Read-only' },
   rentStatus: { PAID: 'Paid', PARTIAL: 'Part paid', DUE: 'Due', OVERDUE: 'Overdue' },
 };
-export const INCOME_CATS = ['RENT', 'DEPOSIT', 'BOOKING', 'OTHER_INCOME'];
+export const INCOME_CATS = ['RENT', 'DEPOSIT', 'BOOKING', 'LEASING_COMMISSION', 'OTHER_INCOME'];
 export const EXPENSE_CATS = Object.keys(L.category).filter(c => !INCOME_CATS.includes(c));
 
 export const TONE = {

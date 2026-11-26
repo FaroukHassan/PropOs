@@ -126,6 +126,7 @@ model Space {
   availableFrom DateTime?
   notes         String?
   leases        Lease[]
+  bookings      Booking[]
   transactions  Transaction[]
   createdAt     DateTime    @default(now())
 
@@ -181,6 +182,8 @@ model Booking {
   org          Org           @relation(fields: [orgId], references: [id])
   unitId       String
   unit         Unit          @relation(fields: [unitId], references: [id])
+  spaceId      String?       // a single partition booked as a holiday stay
+  space        Space?        @relation(fields: [spaceId], references: [id])
   guestName    String
   guestPhone   String?
   guests       Int           @default(1)
@@ -351,6 +354,7 @@ enum TxCategory {
   RENT
   DEPOSIT
   BOOKING
+  LEASING_COMMISSION
   OTHER_INCOME
   RENT_PAID
   DEWA

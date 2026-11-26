@@ -118,8 +118,13 @@ export const chequeFields = ({ units, landlords, leases }) => [
   { name: 'notes', label: 'Notes', type: 'textarea' },
 ];
 
+// units: holiday homes plus any apartment that has partitions let as holiday stays
 export const bookingFields = ({ units }) => [
-  { name: 'unitId', label: 'Holiday home', type: 'select', required: true, options: unitOptions(units, u => u.mode === 'HOLIDAY') },
+  { name: 'unitId', label: 'Apartment', type: 'select', required: true, options: unitOptions(units), onChange: () => ({ spaceId: '' }) },
+  { name: 'spaceId', label: 'Partition', type: 'select', placeholder: 'Whole apartment',
+    options: v => ((units || []).find(u => u.id === v.unitId)?.spaces || []).filter(s => s.status !== 'OCCUPIED').map(s => ({ value: s.id, label: s.code })),
+    show: v => ((units || []).find(u => u.id === v.unitId)?.spaces || []).length > 0,
+    hint: 'For holiday-home partitions such as Azizi Riviera 920' },
   { name: 'channel', label: 'Channel', type: 'select', required: true, options: options(L.channel), default: 'AIRBNB' },
   { name: 'guestName', label: 'Guest name', required: true },
   { name: 'guestPhone', label: 'Guest phone' },
