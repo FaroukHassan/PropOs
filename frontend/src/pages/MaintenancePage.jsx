@@ -1,143 +1,65 @@
 // frontend/src/pages/MaintenancePage.jsx
 import { useState } from 'react';
-import { useFetch } from '../hooks/useFetch';
-import { api, fmt } from '../utils/api';
-import { Badge, Modal, EmptyState, Spinner, FormGroup } from '../components/UI';
-
-const ICONS = { PLUMBING:'🚿', ELECTRICAL:'💡', HVAC:'🔥', APPLIANCE:'🔧', GENERAL:'🔒', STRUCTURAL:'🏗' };
+import { useApi, useSticky } from '../lib/hooks';
+import { api, qs } from '../lib/api';
+import { useAuth } from '../lib/auth';
+import { money, date, L, unitName } from '../lib/format';
+import { maintenanceFields } from '../lib/forms';
+import { Spinner, ErrorBox, Empty, FormModal, Badge, Tabs, useToast } from '../components/ui';
 
 export default function MaintenancePage() {
-  const { data, loading, refetch } = useFetch('/maintenance');
-  const { data: props }            = useFetch('/properties');
-  const [showAdd, setShowAdd]      = useState(false);
-  const [filter, setFilter]        = useState('OPEN');
-  const [form, setForm]            = useState({ unitId:'', title:'', description:'', category:'GENERAL', priority:'NORMAL' });
-  const [busy, setBusy]            = useState(false);
+  const { can } = useAuth();
+  const toast = useToast();
+  const [status, setStatus] = useSticky('maint_status', 'OPEN_ALL');
+  const { data, loading, error, refetch } = useApi(`/maintenance${qs({ status: status === 'OPEN_ALL' ? '' : status })}`);
+  const units = useApi('/units');
+  const [modal, setModal] = useState(null);
+  if (error) return <ErrorBox error={error} retry={refetch} />;
+  const rows = (data || []).filter(m => status !== 'OPEN_ALL' || m.status !== 'RESOLVED');
 
-  const allUnits = (props||[]).flatMap(p => (p.units||[]).map(u => ({ ...u, propertyName: p.name })));
-
-  const filtered = (data||[]).filter(m => filter === 'ALL' || m.status === filter);
-
-  const handleAdd = async e => {
-    e.preventDefault();
-    setBusy(true);
-    try {
-      await api.post('/maintenance', form);
-      refetch();
-      setShowAdd(false);
-      setForm({ unitId:'', title:'', description:'', category:'GENERAL', priority:'NORMAL' });
-    } finally { setBusy(false); }
-  };
-
-  const updateStatus = async (id, status) => {
-    await api.patch(`/maintenance/${id}`, { status });
-    refetch();
-  };
-
-  if (loading) return <Spinner />;
+  const setStat = async (m, s) => { await api.patch(`/maintenance/${m.id}`, { status: s }); toast(`Marked ${L.maintStatus[s].toLowerCase()}`); refetch(); };
 
   return (
     <>
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
-        <div className="section-title" style={{ margin:0 }}>Maintenance Requests</div>
-        <div style={{ display:'flex', gap:8 }}>
-          <select className="form-input" style={{ width:150 }} value={filter} onChange={e => setFilter(e.target.value)}>
-            <option value="ALL">All</option>
-            <option value="OPEN">Open</option>
-            <option value="IN_PROGRESS">In Progress</option>
-            <option value="RESOLVED">Resolved</option>
-          </select>
-          <button className="btn btn-primary" onClick={() => setShowAdd(true)}>+ New Request</button>
+      <div className="toolbar">
+        <Tabs value={status} onChange={setStatus} items={[['OPEN_ALL', 'Not resolved'], ['OPEN', 'Open'], ['IN_PROGRESS', 'In progress'], ['RESOLVED', 'Resolved']]} />
+        <div className="grow" />
+        {can.write && <button className="btn btn-primary" onClick={() => setModal({})}>+ Request</button>}
+      </div>
+      {loading && !data ? <Spinner /> : rows.length === 0 ? <Empty icon="⚒" title="Nothing here">Log AC, plumbing and other issues so nothing is forgotten.</Empty> : (
+        <div className="card card-flush">
+          <div className="table-wrap">
+            <table className="table">
+              <thead><tr><th>Problem</th><th>Where</th><th>Category</th><th>Priority</th><th>Assigned</th><th>Reported</th><th className="num">Cost</th><th>Status</th><th></th></tr></thead>
+              <tbody>
+                {rows.map(m => (
+                  <tr key={m.id} className={can.write ? 'clickable' : ''} onClick={() => can.write && setModal({ item: m })}>
+                    <td className="bold">{m.title}{m.description && <div className="tiny faint">{m.description}</div>}</td>
+                    <td className="small">{unitName(m.unit)}{m.spaceCode ? ` · ${m.spaceCode}` : ''}</td>
+                    <td className="small">{L.maintCategory[m.category]}</td>
+                    <td><Badge value={m.priority} map={L.priority} /></td>
+                    <td className="small">{m.assignedTo || '—'}</td>
+                    <td className="small">{date(m.createdAt)}</td>
+                    <td className="num">{m.cost ? money(m.cost) : '—'}</td>
+                    <td><Badge value={m.status} map={L.maintStatus} /></td>
+                    <td className="right nowrap" onClick={e => e.stopPropagation()}>
+                      {can.write && m.status === 'OPEN' && <button className="btn btn-sm" onClick={() => setStat(m, 'IN_PROGRESS')}>Start</button>}
+                      {can.write && m.status !== 'RESOLVED' && <> <button className="btn btn-sm" onClick={() => setStat(m, 'RESOLVED')}>Done</button></>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
-
-      {/* Summary cards */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:20 }}>
-        {['OPEN','IN_PROGRESS','RESOLVED','URGENT'].map(s => {
-          const count = (data||[]).filter(m => s === 'URGENT' ? m.priority === 'URGENT' && m.status !== 'RESOLVED' : m.status === s).length;
-          return (
-            <div key={s} className="metric-card" style={{ cursor:'pointer' }} onClick={() => setFilter(s === 'URGENT' ? 'OPEN' : s)}>
-              <div className="metric-label">{s.replace('_',' ')}</div>
-              <div className="metric-value" style={{ fontSize:28, color: s==='URGENT' ? 'var(--red)' : s==='RESOLVED' ? 'var(--green)' : 'inherit' }}>{count}</div>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="card">
-        {filtered.length === 0
-          ? <EmptyState icon="🔧" title="No requests" message={filter === 'OPEN' ? 'No open requests. All clear!' : 'No requests in this category.'} />
-          : <div className="table-wrap">
-              <table>
-                <thead><tr><th>Issue</th><th>Unit / Property</th><th>Category</th><th>Reported</th><th>Priority</th><th>Status</th><th>Actions</th></tr></thead>
-                <tbody>
-                  {filtered.map(m => (
-                    <tr key={m.id}>
-                      <td>
-                        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                          <span style={{ fontSize:16 }}>{ICONS[m.category] || '🔧'}</span>
-                          <div>
-                            <div style={{ fontWeight:500 }}>{m.title}</div>
-                            {m.description && <div style={{ fontSize:11, color:'var(--text-3)', maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{m.description}</div>}
-                          </div>
-                        </div>
-                      </td>
-                      <td>
-                        <div>Unit {m.unit?.number}</div>
-                        <div style={{ fontSize:11, color:'var(--text-3)' }}>{m.unit?.property?.name}</div>
-                      </td>
-                      <td style={{ color:'var(--text-2)', fontSize:12 }}>{m.category}</td>
-                      <td style={{ color:'var(--text-2)' }}>{fmt.dateShort(m.createdAt)}</td>
-                      <td><Badge priority={m.priority} /></td>
-                      <td><Badge status={m.status} /></td>
-                      <td>
-                        <div style={{ display:'flex', gap:4 }}>
-                          {m.status === 'OPEN'        && <button className="btn btn-sm" onClick={() => updateStatus(m.id, 'IN_PROGRESS')}>Start</button>}
-                          {m.status === 'IN_PROGRESS' && <button className="btn btn-sm" style={{ color:'var(--green)' }} onClick={() => updateStatus(m.id, 'RESOLVED')}>Resolve</button>}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-        }
-      </div>
-
-      {showAdd && (
-        <Modal title="New Maintenance Request" onClose={() => setShowAdd(false)}
-          footer={<><button className="btn" onClick={() => setShowAdd(false)}>Cancel</button><button className="btn btn-primary" form="add-maint-form" type="submit" disabled={busy}>{busy ? 'Saving…' : 'Submit Request'}</button></>}
-        >
-          <form id="add-maint-form" onSubmit={handleAdd}>
-            <FormGroup label="Unit">
-              <select className="form-input" value={form.unitId} onChange={e => setForm(p=>({...p,unitId:e.target.value}))} required>
-                <option value="">Select unit…</option>
-                {allUnits.map(u => <option key={u.id} value={u.id}>{u.propertyName} — Unit {u.number}</option>)}
-              </select>
-            </FormGroup>
-            <FormGroup label="Issue title">
-              <input className="form-input" value={form.title} onChange={e => setForm(p=>({...p,title:e.target.value}))} required placeholder="Leaking faucet in bathroom" />
-            </FormGroup>
-            <FormGroup label="Description">
-              <textarea className="form-input" value={form.description} onChange={e => setForm(p=>({...p,description:e.target.value}))} rows={3} placeholder="Additional details…" style={{ resize:'vertical' }} />
-            </FormGroup>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-              <FormGroup label="Category">
-                <select className="form-input" value={form.category} onChange={e => setForm(p=>({...p,category:e.target.value}))}>
-                  {['PLUMBING','ELECTRICAL','HVAC','APPLIANCE','STRUCTURAL','GENERAL'].map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </FormGroup>
-              <FormGroup label="Priority">
-                <select className="form-input" value={form.priority} onChange={e => setForm(p=>({...p,priority:e.target.value}))}>
-                  <option value="LOW">Low</option>
-                  <option value="NORMAL">Normal</option>
-                  <option value="HIGH">High</option>
-                  <option value="URGENT">Urgent</option>
-                </select>
-              </FormGroup>
-            </div>
-          </form>
-        </Modal>
+      )}
+      {modal && (
+        <FormModal title={modal.item ? 'Edit request' : 'New maintenance request'} wide fields={maintenanceFields({ units: units.data })} initial={modal.item} onClose={() => setModal(null)}
+          onDelete={modal.item ? async () => { await api.del(`/maintenance/${modal.item.id}`); toast('Deleted'); setModal(null); refetch(); } : undefined}
+          onSubmit={async v => {
+            if (modal.item) await api.patch(`/maintenance/${modal.item.id}`, v); else await api.post('/maintenance', v);
+            toast('Saved'); setModal(null); refetch();
+          }} />
       )}
     </>
   );

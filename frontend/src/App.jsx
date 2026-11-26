@@ -1,108 +1,98 @@
-// frontend/src/App.jsx
+// frontend/src/App.jsx — layout and routes
+import { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider, useAuth } from './lib/auth';
+import { ToastProvider } from './components/ui';
+import { initials, L } from './lib/format';
 
-import LoginPage      from './pages/LoginPage';
-import RegisterPage   from './pages/RegisterPage';
-import DashboardPage  from './pages/DashboardPage';
-import PropertiesPage from './pages/PropertiesPage';
-import TenantsPage    from './pages/TenantsPage';
-import LeasesPage     from './pages/LeasesPage';
+import LoginPage from './pages/LoginPage';
+import DashboardPage from './pages/DashboardPage';
+import PartitionsPage from './pages/PartitionsPage';
+import UnitsPage from './pages/UnitsPage';
+import UnitDetailPage from './pages/UnitDetailPage';
+import BookingsPage from './pages/BookingsPage';
+import TenantsPage from './pages/TenantsPage';
+import RentPage from './pages/RentPage';
+import LedgerPage from './pages/LedgerPage';
+import ChequesPage from './pages/ChequesPage';
+import LandlordsPage from './pages/LandlordsPage';
+import ReportsPage from './pages/ReportsPage';
 import MaintenancePage from './pages/MaintenancePage';
-import FinancePage    from './pages/FinancePage';
-import ReportsPage    from './pages/ReportsPage';
+import ImportPage from './pages/ImportPage';
+import SettingsPage from './pages/SettingsPage';
 
 const NAV = [
-  { to: '/dashboard',   icon: '▦',  label: 'Dashboard',   section: 'Overview'    },
-  { to: '/properties',  icon: '🏢', label: 'Properties',   section: null          },
-  { to: '/tenants',     icon: '👤', label: 'Tenants',      section: 'People'      },
-  { to: '/leases',      icon: '📄', label: 'Leases',       section: null          },
-  { to: '/maintenance', icon: '🔧', label: 'Maintenance',  section: 'Operations'  },
-  { to: '/finance',     icon: '💰', label: 'Finance',      section: null          },
-  { to: '/reports',     icon: '📊', label: 'Reports',      section: 'More'        },
+  ['Overview', [['/dashboard', '◧', 'Dashboard']]],
+  ['Properties', [['/partitions', '▦', 'Partitions board'], ['/units', '⌂', 'Apartments'], ['/bookings', '☾', 'Holiday bookings']]],
+  ['People', [['/tenants', '☺', 'Tenants'], ['/landlords', '⚿', 'Landlords & owners']]],
+  ['Money', [['/rent', '✓', 'Rent collection'], ['/ledger', '≡', 'Income & expenses'], ['/cheques', '✎', 'Cheques'], ['/reports', '◔', 'Reports']]],
+  ['Operations', [['/maintenance', '⚒', 'Maintenance'], ['/import', '⇪', 'Import from sheets'], ['/settings', '⚙', 'Settings']]],
 ];
+const TITLES = Object.fromEntries(NAV.flatMap(([, items]) => items.map(([to, , label]) => [to, label])));
 
-function Sidebar() {
+function Sidebar({ open, onNavigate }) {
   const { user, logout } = useAuth();
-  let lastSection = null;
-
   return (
-    <aside className="sidebar">
-      <div className="logo">
-        <div className="logo-name">PropOS</div>
-        <div className="logo-sub">Property Management</div>
+    <aside className={`sidebar ${open ? 'open' : ''}`}>
+      <div className="brand">
+        <div className="brand-name">Sakanly <span>PropOS</span></div>
+        <div className="brand-sub">Feels like home · سكنلي</div>
       </div>
-
       <nav className="nav">
-        {NAV.map(({ to, icon, label, section }) => {
-          const showSection = section && section !== lastSection;
-          if (section) lastSection = section;
-          return (
-            <div key={to}>
-              {showSection && <div className="nav-section">{section}</div>}
-              <NavLink
-                to={to}
-                className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
-              >
-                <span className="nav-icon">{icon}</span>
-                {label}
-              </NavLink>
-            </div>
-          );
-        })}
+        {NAV.map(([section, items]) => (
+          <div key={section}>
+            <div className="nav-section">{section}</div>
+            {items.map(([to, icon, label]) => (
+              <NavLink key={to} to={to} onClick={onNavigate}><span className="nav-icon">{icon}</span>{label}</NavLink>
+            ))}
+          </div>
+        ))}
       </nav>
-
-      <div className="sidebar-footer">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 8px' }}>
-          <div className="avatar avatar-blue" style={{ width: 30, height: 30, fontSize: 11 }}>
-            {user?.name?.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 12, fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.name}</div>
-            <div style={{ fontSize: 10, color: 'var(--text-3)' }}>{user?.role}</div>
-          </div>
-          <button className="btn btn-sm" onClick={logout} title="Sign out">↩</button>
-        </div>
+      <div className="sidebar-foot">
+        <div className="badge b-sand" style={{ width: 30, height: 30, borderRadius: '50%', justifyContent: 'center', padding: 0 }}>{initials(user?.name)}</div>
+        <div className="who"><div>{user?.name}</div><div>{L.role[user?.role]}</div></div>
+        <button className="btn btn-sm btn-ghost" style={{ color: '#c3cbdb' }} onClick={logout} title="Sign out">Sign out</button>
       </div>
     </aside>
   );
 }
 
-function TopBar() {
-  const { pathname } = useLocation();
-  const labels = { '/dashboard': 'Dashboard', '/properties': 'Properties', '/tenants': 'Tenants', '/leases': 'Leases', '/maintenance': 'Maintenance', '/finance': 'Finance', '/reports': 'Reports' };
-  return (
-    <div className="topbar">
-      <div className="page-title">{labels[pathname] || 'PropOS'}</div>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <span style={{ fontSize: 12, color: 'var(--text-3)' }}>
-          {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function AppLayout() {
+function Shell() {
   const { user, loading } = useAuth();
+  const { pathname } = useLocation();
+  const [menu, setMenu] = useState(false);
+  useEffect(() => setMenu(false), [pathname]);
   if (loading) return <div className="loading" style={{ height: '100vh' }}>Loading…</div>;
-  if (!user)   return <Navigate to="/login" replace />;
-
+  if (!user) return <Navigate to="/login" replace />;
+  const title = TITLES[pathname] || (pathname.startsWith('/units/') ? 'Apartment' : 'PropOS');
   return (
-    <div className="app-layout">
-      <Sidebar />
+    <div className="app">
+      <Sidebar open={menu} onNavigate={() => setMenu(false)} />
       <div className="main">
-        <TopBar />
-        <main className="page-content">
+        <header className="topbar">
+          <div className="row">
+            <button className="btn btn-sm menu-btn" onClick={() => setMenu(m => !m)} aria-label="Menu">☰</button>
+            <h1 className="page-title">{title}</h1>
+          </div>
+          <span className="small faint">{new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span>
+        </header>
+        <main className="content">
           <Routes>
-            <Route path="/dashboard"   element={<DashboardPage  />} />
-            <Route path="/properties"  element={<PropertiesPage />} />
-            <Route path="/tenants"     element={<TenantsPage    />} />
-            <Route path="/leases"      element={<LeasesPage     />} />
-            <Route path="/maintenance" element={<MaintenancePage/>} />
-            <Route path="/finance"     element={<FinancePage    />} />
-            <Route path="/reports"     element={<ReportsPage    />} />
-            <Route path="*"            element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/partitions" element={<PartitionsPage />} />
+            <Route path="/units" element={<UnitsPage />} />
+            <Route path="/units/:id" element={<UnitDetailPage />} />
+            <Route path="/bookings" element={<BookingsPage />} />
+            <Route path="/tenants" element={<TenantsPage />} />
+            <Route path="/landlords" element={<LandlordsPage />} />
+            <Route path="/rent" element={<RentPage />} />
+            <Route path="/ledger" element={<LedgerPage />} />
+            <Route path="/cheques" element={<ChequesPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/maintenance" element={<MaintenancePage />} />
+            <Route path="/import" element={<ImportPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </main>
       </div>
@@ -112,12 +102,13 @@ function AppLayout() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <Routes>
-        <Route path="/login"    element={<LoginPage    />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/*"        element={<AppLayout    />} />
-      </Routes>
-    </AuthProvider>
+    <ToastProvider>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/*" element={<Shell />} />
+        </Routes>
+      </AuthProvider>
+    </ToastProvider>
   );
 }

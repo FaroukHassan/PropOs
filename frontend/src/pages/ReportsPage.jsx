@@ -1,150 +1,93 @@
-// frontend/src/pages/ReportsPage.jsx
-import { useState } from 'react';
-import { api, fmt } from '../utils/api';
+// frontend/src/pages/ReportsPage.jsx — monthly P&L and profit per apartment
+import { useApi, useSticky } from '../lib/hooks';
+import { money, pct, L, monthKey, monthLabel, downloadCsv } from '../lib/format';
+import { Spinner, ErrorBox, MonthPicker, Stat, Tabs, Badge } from '../components/ui';
 
-const REPORTS = [
-  { id:'financial',        icon:'📈', title:'Financial Report',       desc:'P&L, revenue, expenses, NOI' },
-  { id:'occupancy',        icon:'🏢', title:'Occupancy Report',        desc:'Unit occupancy per property' },
-  { id:'lease-expirations',icon:'📄', title:'Lease Expirations',       desc:'Leases expiring in 90 days' },
-];
+export default function ReportsPage() {
+  const [month, setMonth] = useSticky('rep_month', monthKey());
+  const [tab, setTab] = useSticky('rep_tab', 'pnl');
+  const pnl = useApi(`/reports/pnl?month=${month}`);
+  const units = useApi(`/reports/units?month=${month}`);
+  const err = pnl.error || units.error;
+  if (err) return <ErrorBox error={err} retry={() => { pnl.refetch(); units.refetch(); }} />;
 
-function FinancialResult({ data }) {
-  if (!data) return null;
   return (
-    <div style={{ marginTop:24 }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:16 }}>
-        <div>
-          <div style={{ fontWeight:600, fontSize:16 }}>{data.org?.name} — Financial Report</div>
-          <div style={{ fontSize:12, color:'var(--text-3)' }}>
-            {new Date(data.period.from).toLocaleDateString('en-US',{month:'long',year:'numeric'})} · Generated {fmt.date(data.generatedAt)}
+    <div className="stack">
+      <div className="toolbar" style={{ marginBottom: 0 }}>
+        <MonthPicker value={month} onChange={setMonth} />
+        <Tabs value={tab} onChange={setTab} items={[['pnl', 'Profit & loss'], ['units', 'By apartment']]} />
+        <div className="grow" />
+        <button className="btn" onClick={() => window.print()}>Print / PDF</button>
+      </div>
+      <div className="print-only"><b>Sakanly Stay Holiday Homes</b> · {tab === 'pnl' ? 'Profit & loss' : 'Profit by apartment'} · {monthLabel(month)}</div>
+
+      {tab === 'pnl' ? (!pnl.data ? <Spinner /> : (
+        <>
+          <div className="grid g4">
+            <Stat label="Revenue" value={money(pnl.data.totalIncome)} />
+            <Stat label="Expenses" value={money(pnl.data.totalExpenses)} />
+            <Stat accent label="Net profit" value={money(pnl.data.net)} />
+            <Stat label="Net margin" value={pnl.data.margin === null ? '—' : pct(pnl.data.margin, 1)} />
           </div>
-        </div>
-        <button className="btn btn-sm" onClick={() => window.print()}>🖨 Print</button>
-      </div>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:16 }}>
-        <div className="metric-card"><div className="metric-label">Total Revenue</div><div className="metric-value" style={{ color:'var(--green)' }}>{fmt.currency(data.revenue.total)}</div></div>
-        <div className="metric-card"><div className="metric-label">Total Expenses</div><div className="metric-value" style={{ color:'var(--red)' }}>{fmt.currency(data.expenses.total)}</div></div>
-        <div className="metric-card"><div className="metric-label">Net Operating Income</div><div className="metric-value">{fmt.currency(data.noi)}</div></div>
-      </div>
-      <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
-        <thead><tr><th style={{ textAlign:'left', padding:'6px 8px', borderBottom:'1px solid var(--border)', color:'var(--text-2)', fontSize:11 }}>Tenant</th><th style={{ textAlign:'left', padding:'6px 8px', borderBottom:'1px solid var(--border)', color:'var(--text-2)', fontSize:11 }}>Unit</th><th style={{ textAlign:'right', padding:'6px 8px', borderBottom:'1px solid var(--border)', color:'var(--text-2)', fontSize:11 }}>Amount</th><th style={{ textAlign:'left', padding:'6px 8px', borderBottom:'1px solid var(--border)', color:'var(--text-2)', fontSize:11 }}>Date</th></tr></thead>
-        <tbody>
-          {data.revenue.items.map(p => (
-            <tr key={p.id}>
-              <td style={{ padding:'7px 8px', borderBottom:'1px solid var(--border)' }}>{p.lease?.tenant?.name}</td>
-              <td style={{ padding:'7px 8px', borderBottom:'1px solid var(--border)', color:'var(--text-2)' }}>Unit {p.lease?.unit?.number}</td>
-              <td style={{ padding:'7px 8px', borderBottom:'1px solid var(--border)', textAlign:'right', color:'var(--green)', fontWeight:500 }}>+{fmt.currency(p.amount)}</td>
-              <td style={{ padding:'7px 8px', borderBottom:'1px solid var(--border)', color:'var(--text-2)' }}>{fmt.date(p.paidDate)}</td>
-            </tr>
-          ))}
-          {data.expenses.items.map(e => (
-            <tr key={e.id}>
-              <td style={{ padding:'7px 8px', borderBottom:'1px solid var(--border)' }}>{e.description}</td>
-              <td style={{ padding:'7px 8px', borderBottom:'1px solid var(--border)', color:'var(--text-2)' }}>{e.category}</td>
-              <td style={{ padding:'7px 8px', borderBottom:'1px solid var(--border)', textAlign:'right', color:'var(--red)', fontWeight:500 }}>-{fmt.currency(e.amount)}</td>
-              <td style={{ padding:'7px 8px', borderBottom:'1px solid var(--border)', color:'var(--text-2)' }}>{fmt.date(e.date)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function OccupancyResult({ data }) {
-  if (!data) return null;
-  return (
-    <div style={{ marginTop:24 }}>
-      <div style={{ fontWeight:600, fontSize:16, marginBottom:4 }}>Occupancy Report</div>
-      <div style={{ fontSize:12, color:'var(--text-3)', marginBottom:16 }}>Generated {fmt.date(data.generatedAt)}</div>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:16 }}>
-        <div className="metric-card"><div className="metric-label">Total Units</div><div className="metric-value">{data.summary.totalUnits}</div></div>
-        <div className="metric-card"><div className="metric-label">Occupied</div><div className="metric-value" style={{ color:'var(--green)' }}>{data.summary.occupiedUnits}</div></div>
-        <div className="metric-card"><div className="metric-label">Occupancy Rate</div><div className="metric-value">{fmt.pct(data.summary.overallOccupancyRate)}</div></div>
-      </div>
-      {data.properties.map(p => (
-        <div key={p.id} style={{ background:'var(--bg)', border:'1px solid var(--border)', borderRadius:10, padding:'12px 16px', marginBottom:8 }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-            <div><div style={{ fontWeight:500 }}>{p.name}</div><div style={{ fontSize:12, color:'var(--text-3)' }}>{p.address}</div></div>
-            <div style={{ textAlign:'right' }}>
-              <div style={{ fontWeight:600 }}>{fmt.pct(p.occupancyRate)}</div>
-              <div style={{ fontSize:12, color:'var(--text-2)' }}>{p.occupiedUnits}/{p.totalUnits} units</div>
+          <div className="grid g2">
+            <Breakdown title="Revenue" rows={pnl.data.income} total={pnl.data.totalIncome} />
+            <Breakdown title="Expenses" rows={pnl.data.expenses} total={pnl.data.totalExpenses} />
+          </div>
+        </>
+      )) : (!units.data ? <Spinner /> : (
+        <>
+          <div className="grid g3">
+            <Stat label="Apartments' profit" value={money(units.data.totals.unitsNet)} sub="Income minus that apartment's own costs" />
+            <Stat label="Company overheads" value={money(units.data.overheads.expenses)} sub="Salaries, licence, internet… not tied to one flat" />
+            <Stat accent label="Company net" value={money(units.data.totals.companyNet)} />
+          </div>
+          <div className="card card-flush">
+            <div className="card-head">
+              <div className="card-title">Profit by apartment · {monthLabel(month)}</div>
+              <button className="btn btn-sm no-print" onClick={() => downloadCsv(`apartments-${month}.csv`, units.data.rows.map(r => ({
+                Building: r.building, Apartment: r.unit, Type: L.mode[r.mode], Income: r.income, 'Landlord rent': r.landlordRent, DEWA: r.dewa, Other: r.otherExpenses, Net: r.net,
+              })))}>Export</button>
+            </div>
+            <div className="table-wrap">
+              <table className="table">
+                <thead><tr><th>Apartment</th><th>Type</th><th className="num">Income</th><th className="num">Landlord rent</th><th className="num">DEWA</th><th className="num">Other costs</th><th className="num">Net</th></tr></thead>
+                <tbody>
+                  {units.data.rows.map(r => (
+                    <tr key={r.unitId}>
+                      <td className="bold">{r.building} {r.unit}{r.landlord && <div className="tiny faint">{r.landlord}</div>}</td>
+                      <td><Badge tone="sand">{L.mode[r.mode]}</Badge></td>
+                      <td className="num">{money(r.income)}</td><td className="num">{money(r.landlordRent)}</td><td className="num">{money(r.dewa)}</td><td className="num">{money(r.otherExpenses)}</td>
+                      <td className="num bold" style={{ color: r.net < 0 ? 'var(--red)' : 'var(--green)' }}>{money(r.net)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr><td colSpan={6}>All apartments</td><td className="num">{money(units.data.totals.unitsNet)}</td></tr>
+                  <tr><td colSpan={6}>Company overheads{units.data.overheads.income ? ' (net of other income)' : ''}</td><td className="num">{money(units.data.overheads.income - units.data.overheads.expenses)}</td></tr>
+                  <tr><td colSpan={6}>Company net</td><td className="num">{money(units.data.totals.companyNet)}</td></tr>
+                </tfoot>
+              </table>
             </div>
           </div>
-        </div>
+          <p className="small muted">Landlord rent shows in the month the cheque was paid. Quarterly cheques therefore make one month look low and the next two look high. Compare apartments over a full quarter.</p>
+        </>
       ))}
     </div>
   );
 }
 
-function LeaseResult({ data }) {
-  if (!data) return null;
+function Breakdown({ title, rows, total }) {
   return (
-    <div style={{ marginTop:24 }}>
-      <div style={{ fontWeight:600, fontSize:16, marginBottom:4 }}>Lease Expirations (next 90 days)</div>
-      <div style={{ fontSize:12, color:'var(--text-3)', marginBottom:16 }}>{data.count} lease{data.count !== 1 ? 's' : ''} expiring</div>
-      {data.leases.map(l => {
-        const days = Math.ceil((new Date(l.endDate) - new Date()) / 86400000);
-        return (
-          <div key={l.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:10, padding:'12px 16px', marginBottom:8 }}>
-            <div>
-              <div style={{ fontWeight:500 }}>{l.tenant?.name}</div>
-              <div style={{ fontSize:12, color:'var(--text-3)' }}>{l.unit?.property?.name} — Unit {l.unit?.number}</div>
-            </div>
-            <div style={{ textAlign:'right' }}>
-              <div style={{ fontWeight:500, color: days <= 30 ? 'var(--red)' : 'var(--amber)' }}>{days}d remaining</div>
-              <div style={{ fontSize:12, color:'var(--text-2)' }}>Ends {fmt.date(l.endDate)}</div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-export default function ReportsPage() {
-  const [active, setActive]  = useState(null);
-  const [result, setResult]  = useState(null);
-  const [loading, setLoad]   = useState(false);
-
-  const run = async (id) => {
-    setActive(id);
-    setResult(null);
-    setLoad(true);
-    try {
-      const data = await api.get(`/reports/${id}`);
-      setResult({ id, data });
-    } finally { setLoad(false); }
-  };
-
-  return (
-    <>
-      <div className="section-title">Reports</div>
-      <div className="grid-3">
-        {REPORTS.map(r => (
-          <div
-            key={r.id}
-            className="card"
-            style={{ cursor:'pointer', border: active===r.id ? '2px solid var(--blue)' : undefined, transition:'border 0.15s' }}
-            onClick={() => run(r.id)}
-          >
-            <div style={{ fontSize:28, marginBottom:10 }}>{r.icon}</div>
-            <div style={{ fontWeight:600, marginBottom:4 }}>{r.title}</div>
-            <div style={{ fontSize:12, color:'var(--text-2)' }}>{r.desc}</div>
-            {active === r.id && <div style={{ marginTop:10 }}><span className="badge badge-info">Selected</span></div>}
-          </div>
-        ))}
-      </div>
-
-      {loading && <div className="loading" style={{ padding:48 }}>Generating report…</div>}
-
-      {result && !loading && (
-        <div className="card" style={{ marginTop:8 }}>
-          {result.id === 'financial'         && <FinancialResult data={result.data} />}
-          {result.id === 'occupancy'         && <OccupancyResult data={result.data} />}
-          {result.id === 'lease-expirations' && <LeaseResult     data={result.data} />}
+    <div className="card">
+      <div className="card-title" style={{ marginBottom: 10 }}>{title}</div>
+      {rows.length === 0 && <p className="small muted">Nothing recorded.</p>}
+      {rows.map(r => (
+        <div key={r.category} style={{ marginBottom: 10 }}>
+          <div className="row-between small"><span>{L.category[r.category]}</span><span className="num bold">{money(r.total)}</span></div>
+          <div className="bar" style={{ marginTop: 4 }}><div style={{ width: `${total ? (r.total / total) * 100 : 0}%` }} /></div>
         </div>
-      )}
-    </>
+      ))}
+      <div className="row-between" style={{ borderTop: '1px solid var(--line)', paddingTop: 8, marginTop: 6 }}><b>Total</b><b className="num">{money(total)}</b></div>
+    </div>
   );
 }

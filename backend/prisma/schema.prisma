@@ -1,5 +1,10 @@
 // backend/prisma/schema.prisma
-// Run: npx prisma migrate dev --name init
+// PropOS — Sakanly edition.
+// Models the way Sakanly operates:
+//   Building → Unit (apartment) → Space (partition / bed / room)
+//   Units run in one of three modes: PARTITIONS, HOLIDAY (nightly), LONG_TERM (annual)
+//   Units are either leased from a landlord (MASTER_LEASE), managed for an owner (MANAGEMENT) or owned.
+//   Money is tracked in one ledger (Transaction) plus a cheque register (Cheque).
 
 generator client {
   provider = "prisma-client-js"
@@ -10,158 +15,380 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id           String     @id @default(uuid())
-  email        String     @unique
-  passwordHash String
-  name         String
-  role         Role       @default(MANAGER)
-  orgId        String
-  org          Org        @relation(fields: [orgId], references: [id])
-  createdAt    DateTime   @default(now())
-}
+// ─── Organisation & users ─────────────────────────────────────────────────────
 
 model Org {
-  id         String       @id @default(uuid())
-  name       String
-  slug       String       @unique
-  plan       Plan         @default(FREE)
-  users      User[]
-  properties Property[]
-  expenses   Expense[]
-  tenants    Tenant[]
-  createdAt  DateTime     @default(now())
+  id          String        @id @default(uuid())
+  name        String
+  slug        String        @unique
+  currency    String        @default("AED")
+  users       User[]
+  buildings   Building[]
+  units       Unit[]
+  spaces      Space[]
+  landlords   Landlord[]
+  tenants     Tenant[]
+  leases      Lease[]
+  bookings    Booking[]
+  transactions Transaction[]
+  cheques     Cheque[]
+  maintenance MaintenanceRequest[]
+  createdAt   DateTime      @default(now())
 }
 
-model Property {
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         Role     @default(MANAGER)
+  orgId        String
+  org          Org      @relation(fields: [orgId], references: [id])
+  createdAt    DateTime @default(now())
+}
+
+// ─── Portfolio ────────────────────────────────────────────────────────────────
+
+model Building {
   id        String   @id @default(uuid())
   orgId     String
   org       Org      @relation(fields: [orgId], references: [id])
   name      String
-  address   String
-  city      String
-  type      PropertyType @default(RESIDENTIAL)
+  area      String?
+  city      String   @default("Dubai")
+  notes     String?
   units     Unit[]
+  createdAt DateTime @default(now())
+
+  @@unique([orgId, name])
+}
+
+model Landlord {
+  id        String   @id @default(uuid())
+  orgId     String
+  org       Org      @relation(fields: [orgId], references: [id])
+  name      String
+  phone     String?
+  email     String?
+  notes     String?
+  units     Unit[]
+  cheques   Cheque[]
+  transactions Transaction[]
   createdAt DateTime @default(now())
 }
 
 model Unit {
-  id         String    @id @default(uuid())
-  propertyId String
-  property   Property  @relation(fields: [propertyId], references: [id])
-  number     String
-  floor      Int?
-  bedrooms   Int       @default(1)
-  bathrooms  Float     @default(1)
-  sqft       Float?
-  rentAmount Float
-  leases     Lease[]
-  maintenance MaintenanceRequest[]
+  id            String       @id @default(uuid())
+  orgId         String
+  org           Org          @relation(fields: [orgId], references: [id])
+  buildingId    String
+  building      Building     @relation(fields: [buildingId], references: [id])
+  number        String       // apartment no., e.g. "2803" or "F706"
+  mode          UnitMode     @default(PARTITIONS)
+  arrangement   Arrangement  @default(MASTER_LEASE)
+  landlordId    String?
+  landlord      Landlord?    @relation(fields: [landlordId], references: [id])
+  landlordRent  Float?       // annual rent Sakanly pays the landlord (MASTER_LEASE)
+  managementFee Float?       // % of income Sakanly keeps (MANAGEMENT)
+  bedrooms      Int?
+  bathrooms     Int?
+  occupancy     Occupancy    @default(MIX)
+  nightlyRate   Float?       // HOLIDAY units
+  monthlyRent   Float?       // LONG_TERM units
+  dewaAccount   String?
+  amenities     String?
+  notes         String?
+  active        Boolean      @default(true)
+  spaces        Space[]
+  leases        Lease[]
+  bookings      Booking[]
+  transactions  Transaction[]
+  cheques       Cheque[]
+  maintenance   MaintenanceRequest[]
+  createdAt     DateTime     @default(now())
+
+  @@unique([buildingId, number])
 }
+
+model Space {
+  id            String      @id @default(uuid())
+  orgId         String
+  org           Org         @relation(fields: [orgId], references: [id])
+  unitId        String
+  unit          Unit        @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  code          String      // "P9", "Bed 1", "S3"
+  kind          SpaceKind   @default(PARTITION)
+  monthlyRate   Float
+  deposit       Float       @default(0)
+  capacity      Int         @default(1)
+  amenities     String?
+  status        SpaceStatus @default(AVAILABLE)
+  availableFrom DateTime?
+  notes         String?
+  leases        Lease[]
+  transactions  Transaction[]
+  createdAt     DateTime    @default(now())
+
+  @@unique([unitId, code])
+}
+
+// ─── People & agreements ──────────────────────────────────────────────────────
 
 model Tenant {
   id          String    @id @default(uuid())
   orgId       String
   org         Org       @relation(fields: [orgId], references: [id])
   name        String
-  email       String
   phone       String?
+  email       String?
+  nationality String?
   idNumber    String?
-  emergencyContact String?
+  notes       String?
   leases      Lease[]
   createdAt   DateTime  @default(now())
 }
 
+// A tenancy: one tenant in one space (partition/bed) or one whole unit (long-term)
 model Lease {
-  id          String      @id @default(uuid())
-  unitId      String
-  unit        Unit        @relation(fields: [unitId], references: [id])
-  tenantId    String
-  tenant      Tenant      @relation(fields: [tenantId], references: [id])
-  startDate   DateTime
-  endDate     DateTime
-  rentAmount  Float
-  deposit     Float
-  status      LeaseStatus @default(ACTIVE)
-  payments    Payment[]
-  createdAt   DateTime    @default(now())
+  id            String      @id @default(uuid())
+  orgId         String
+  org           Org         @relation(fields: [orgId], references: [id])
+  tenantId      String
+  tenant        Tenant      @relation(fields: [tenantId], references: [id])
+  unitId        String
+  unit          Unit        @relation(fields: [unitId], references: [id])
+  spaceId       String?
+  space         Space?      @relation(fields: [spaceId], references: [id])
+  startDate     DateTime
+  endDate       DateTime?   // open-ended for monthly partitions
+  rent          Float       // monthly rent for spaces; annual for LONG_TERM
+  rentPeriod    RentPeriod  @default(MONTHLY)
+  deposit       Float       @default(0)
+  depositPaid   Float       @default(0)
+  dueDay        Int         @default(1) // day of month rent is due
+  broker        String?
+  commission    Float?
+  status        LeaseStatus @default(ACTIVE)
+  notes         String?
+  transactions  Transaction[]
+  cheques       Cheque[]
+  createdAt     DateTime    @default(now())
 }
 
-model Payment {
+model Booking {
+  id           String        @id @default(uuid())
+  orgId        String
+  org          Org           @relation(fields: [orgId], references: [id])
+  unitId       String
+  unit         Unit          @relation(fields: [unitId], references: [id])
+  guestName    String
+  guestPhone   String?
+  guests       Int           @default(1)
+  channel      Channel       @default(DIRECT)
+  reference    String?
+  checkIn      DateTime
+  checkOut     DateTime
+  totalAmount  Float         // what the guest pays
+  channelFee   Float         @default(0) // Airbnb / Booking.com commission
+  cleaningFee  Float         @default(0)
+  tourismFee   Float         @default(0) // Tourism Dirham
+  status       BookingStatus @default(CONFIRMED)
+  notes        String?
+  transactions Transaction[]
+  createdAt    DateTime      @default(now())
+}
+
+// ─── Money ────────────────────────────────────────────────────────────────────
+
+// One ledger for everything that moves money, like the monthly Transaction Log sheet
+model Transaction {
   id          String        @id @default(uuid())
-  leaseId     String
-  lease       Lease         @relation(fields: [leaseId], references: [id])
+  orgId       String
+  org         Org           @relation(fields: [orgId], references: [id])
+  date        DateTime
+  type        TxType
+  category    TxCategory
+  description String
+  amount      Float
+  method      PayMethod     @default(CASH)
+  unitId      String?
+  unit        Unit?         @relation(fields: [unitId], references: [id])
+  spaceId     String?
+  space       Space?        @relation(fields: [spaceId], references: [id])
+  leaseId     String?
+  lease       Lease?        @relation(fields: [leaseId], references: [id])
+  bookingId   String?
+  booking     Booking?      @relation(fields: [bookingId], references: [id])
+  landlordId  String?
+  landlord    Landlord?     @relation(fields: [landlordId], references: [id])
+  chequeId    String?       @unique
+  cheque      Cheque?       @relation(fields: [chequeId], references: [id])
+  periodMonth String?       // "2026-06" — which month's rent this covers
+  estimated   Boolean       @default(false)
+  notes       String?
+  createdBy   String?
+  createdAt   DateTime      @default(now())
+
+  @@index([orgId, date])
+}
+
+model Cheque {
+  id          String        @id @default(uuid())
+  orgId       String
+  org         Org           @relation(fields: [orgId], references: [id])
+  direction   ChequeDir     // IN = received from tenant, OUT = issued to landlord
+  number      String
+  bank        String?
   amount      Float
   dueDate     DateTime
-  paidDate    DateTime?
-  status      PaymentStatus @default(PENDING)
-  method      String?
-  stripeId    String?       @unique
+  status      ChequeStatus  @default(PENDING)
+  postponedTo DateTime?     // new date when a cheque is postponed
+  partyName   String?       // who issued / who receives
+  unitId      String?
+  unit        Unit?         @relation(fields: [unitId], references: [id])
+  leaseId     String?
+  lease       Lease?        @relation(fields: [leaseId], references: [id])
+  landlordId  String?
+  landlord    Landlord?     @relation(fields: [landlordId], references: [id])
   notes       String?
+  transaction Transaction?
   createdAt   DateTime      @default(now())
+
+  @@index([orgId, dueDate])
 }
 
 model MaintenanceRequest {
-  id          String            @id @default(uuid())
-  unitId      String
-  unit        Unit              @relation(fields: [unitId], references: [id])
-  title       String
-  description String
-  category    MaintenanceCategory
-  priority    Priority          @default(NORMAL)
-  status      MaintenanceStatus @default(OPEN)
-  assignedTo  String?
-  resolvedAt  DateTime?
-  cost        Float?
-  createdAt   DateTime          @default(now())
-}
-
-model Expense {
-  id          String          @id @default(uuid())
+  id          String              @id @default(uuid())
   orgId       String
-  org         Org             @relation(fields: [orgId], references: [id])
-  propertyId  String?
-  category    ExpenseCategory
-  description String
-  amount      Float
-  date        DateTime
-  vendor      String?
-  receipt     String?
-  createdAt   DateTime        @default(now())
+  org         Org                 @relation(fields: [orgId], references: [id])
+  unitId      String
+  unit        Unit                @relation(fields: [unitId], references: [id])
+  spaceCode   String?
+  title       String
+  description String?
+  category    MaintenanceCategory @default(GENERAL)
+  priority    Priority            @default(NORMAL)
+  status      MaintenanceStatus   @default(OPEN)
+  assignedTo  String?
+  cost        Float?
+  resolvedAt  DateTime?
+  createdAt   DateTime            @default(now())
 }
 
-// Enums
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
 enum Role {
   ADMIN
   MANAGER
   VIEWER
 }
 
-enum Plan {
-  FREE
-  PRO
-  ENTERPRISE
+enum UnitMode {
+  PARTITIONS
+  HOLIDAY
+  LONG_TERM
 }
 
-enum PropertyType {
-  RESIDENTIAL
-  COMMERCIAL
-  SHORT_TERM
+enum Arrangement {
+  MASTER_LEASE // Sakanly rents from landlord and sublets
+  MANAGEMENT   // Sakanly manages for an owner for a fee
+  OWNED
+}
+
+enum Occupancy {
+  MIX
+  LADIES
+  MEN
+  FAMILY
+}
+
+enum SpaceKind {
+  PARTITION
+  BED
+  ROOM
+  STUDIO
+}
+
+enum SpaceStatus {
+  AVAILABLE
+  RESERVED
+  OCCUPIED
+  NOT_READY
+}
+
+enum RentPeriod {
+  MONTHLY
+  YEARLY
 }
 
 enum LeaseStatus {
   ACTIVE
-  EXPIRED
-  TERMINATED
-  PENDING
+  NOTICE
+  ENDED
 }
 
-enum PaymentStatus {
+enum Channel {
+  AIRBNB
+  BOOKING
+  DIRECT
+  OTHER
+}
+
+enum BookingStatus {
+  INQUIRY
+  CONFIRMED
+  CHECKED_IN
+  CHECKED_OUT
+  CANCELLED
+}
+
+enum TxType {
+  INCOME
+  EXPENSE
+}
+
+enum TxCategory {
+  RENT
+  DEPOSIT
+  BOOKING
+  OTHER_INCOME
+  RENT_PAID
+  DEWA
+  INTERNET
+  MAINTENANCE
+  CLEANING
+  SALARIES
+  COMMISSION
+  DEPOSIT_REFUND
+  LICENSE
+  ADMIN
+  SECURITY
+  FURNITURE
+  OWNER_PAYOUT
+  OTHER_EXPENSE
+}
+
+enum PayMethod {
+  CASH
+  BANK
+  CARD
+  CHEQUE
+  ONLINE
+}
+
+enum ChequeDir {
+  IN
+  OUT
+}
+
+enum ChequeStatus {
   PENDING
-  PAID
-  LATE
-  OVERDUE
-  WAIVED
+  POSTPONED
+  DEPOSITED
+  CLEARED
+  BOUNCED
+  REPLACED
+  CANCELLED
 }
 
 enum Priority {
@@ -175,24 +402,14 @@ enum MaintenanceStatus {
   OPEN
   IN_PROGRESS
   RESOLVED
-  CLOSED
 }
 
 enum MaintenanceCategory {
+  AC
   PLUMBING
   ELECTRICAL
-  HVAC
   APPLIANCE
-  STRUCTURAL
+  CLEANING
+  PEST
   GENERAL
-}
-
-enum ExpenseCategory {
-  MAINTENANCE
-  INSURANCE
-  TAX
-  UTILITIES
-  MANAGEMENT
-  MARKETING
-  OTHER
 }

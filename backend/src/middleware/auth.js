@@ -1,44 +1,53 @@
 // backend/src/middleware/auth.js
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'change_me_in_production';
-const JWT_EXPIRES = '7d';
-
-/**
- * Sign a JWT for the given user payload.
- */
-function signToken(payload) {
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES });
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET && process.env.NODE_ENV === 'production') {
+  throw new Error('JWT_SECRET must be set in production');
 }
+const SECRET = JWT_SECRET || 'dev-only-secret';
 
-/**
- * Express middleware — verifies Bearer token and attaches user to req.
- */
-function authenticate(req, res, next) {
-  const header = req.headers.authorization;
-  if (!header || !header.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'No token provided' });
+const signToken = payload => jwt.sign(payload, SECRET, { expiresIn: '7d' });
+
+// Confirm the account still exists and use its current role, so removing someone or changing
+// their access takes effect straight away. Cached for 30 seconds to keep requests fast.
+const prisma = require('../db');
+const seen = new Map();
+async function currentUser(id) {
+  const hit = seen.get(id);
+  if (hit && Date.now() - hit.at < 30000) return hit.user;
+  const user = await prisma.user.findUnique({ where: { id }, select: { id: true, orgId: true, role: true } });
+  seen.set(id, { user, at: Date.now() });
+  return user;
+}
+const forgetUser = id => seen.delete(id);
+
+async function authenticate(req, res, next) {
+  const header = req.headers.authorization || '';
+  if (!header.startsWith('Bearer ')) return res.status(401).json({ error: 'Not signed in' });
+  let payload;
+  try {
+    payload = jwt.verify(header.slice(7), SECRET);
+  } catch {
+    return res.status(401).json({ error: 'Session expired, please sign in again' });
   }
   try {
-    const token = header.split(' ')[1];
-    req.user = jwt.verify(token, JWT_SECRET);
+    const user = await currentUser(payload.id);
+    if (!user) return res.status(401).json({ error: 'This account no longer exists' });
+    req.user = user;
     next();
-  } catch {
-    return res.status(401).json({ error: 'Invalid or expired token' });
+  } catch (e) { next(e); }
+}
+
+// VIEWERs can read but not change anything
+function writeGuard(req, res, next) {
+  if (req.method !== 'GET' && req.user.role === 'VIEWER') {
+    return res.status(403).json({ error: 'Your account is read-only' });
   }
+  next();
 }
 
-/**
- * Role guard factory — use after authenticate().
- * e.g. router.delete('/:id', authenticate, requireRole('ADMIN'), handler)
- */
-function requireRole(...roles) {
-  return (req, res, next) => {
-    if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ error: 'Insufficient permissions' });
-    }
-    next();
-  };
-}
+const requireRole = (...roles) => (req, res, next) =>
+  roles.includes(req.user.role) ? next() : res.status(403).json({ error: 'Not allowed' });
 
-module.exports = { signToken, authenticate, requireRole };
+module.exports = { signToken, authenticate, writeGuard, requireRole, forgetUser };

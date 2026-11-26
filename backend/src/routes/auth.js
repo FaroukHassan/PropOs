@@ -1,75 +1,102 @@
-// backend/src/routes/auth.js
-const router  = require('express').Router();
-const bcrypt  = require('bcryptjs');
-const { body, validationResult } = require('express-validator');
-const { PrismaClient } = require('@prisma/client');
-const { signToken, authenticate } = require('../middleware/auth');
+// backend/src/routes/auth.js — sign-in and team accounts (internal team only, no public sign-up)
+const router = require('express').Router();
+const bcrypt = require('bcryptjs');
+const prisma = require('../db');
+const { ah, HttpError } = require('../middleware/errorHandler');
+const { signToken, authenticate, requireRole, forgetUser } = require('../middleware/auth');
+const ROLES = ['ADMIN', 'MANAGER', 'VIEWER'];
 
-const prisma = new PrismaClient();
+const publicUser = u => ({ id: u.id, name: u.name, email: u.email, role: u.role });
 
-// POST /api/auth/register
-router.post('/register', [
-  body('email').isEmail(),
-  body('password').isLength({ min: 8 }),
-  body('name').notEmpty(),
-  body('orgName').notEmpty(),
-  body('slug').optional().matches(/^[a-z0-9-]+$/).withMessage('Slug must be lowercase alphanumeric with hyphens'),
-], async (req, res, next) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) return res.status(422).json({ errors: errors.array() });
+// Simple in-memory throttle on failed logins: 10 failures per email per 15 minutes
+const failures = new Map();
+function tooMany(email) {
+  const f = failures.get(email);
+  if (!f) return false;
+  if (Date.now() - f.first > 15 * 60000) { failures.delete(email); return false; }
+  return f.count >= 10;
+}
+function recordFailure(email) {
+  const f = failures.get(email);
+  if (!f || Date.now() - f.first > 15 * 60000) failures.set(email, { count: 1, first: Date.now() });
+  else f.count++;
+}
 
-  try {
-    const { email, password, name, orgName, slug } = req.body;
-    const orgSlug = slug || orgName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+router.post('/login', ah(async (req, res) => {
+  const email = String(req.body.email || '').trim().toLowerCase();
+  const password = String(req.body.password || '');
+  if (!email || !password) throw new HttpError(422, 'Email and password are required');
+  if (tooMany(email)) throw new HttpError(429, 'Too many attempts. Try again in 15 minutes.');
 
-    const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) return res.status(409).json({ error: 'Email already registered' });
+  const user = await prisma.user.findUnique({ where: { email }, include: { org: true } });
+  if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+    recordFailure(email);
+    throw new HttpError(401, 'Wrong email or password');
+  }
+  failures.delete(email);
+  const token = signToken({ id: user.id, orgId: user.orgId, role: user.role });
+  res.json({ token, user: { ...publicUser(user), org: { name: user.org.name, currency: user.org.currency } } });
+}));
 
-    const existingOrg = await prisma.org.findUnique({ where: { slug: orgSlug } });
-    if (existingOrg) return res.status(409).json({ error: 'Organization slug already taken' });
+router.get('/me', authenticate, ah(async (req, res) => {
+  const user = await prisma.user.findUnique({ where: { id: req.user.id }, include: { org: true } });
+  if (!user) throw new HttpError(401, 'Account no longer exists');
+  res.json({ ...publicUser(user), org: { name: user.org.name, currency: user.org.currency } });
+}));
 
-    const passwordHash = await bcrypt.hash(password, 12);
+router.post('/password', authenticate, ah(async (req, res) => {
+  const { current, next } = req.body;
+  if (!next || String(next).length < 8) throw new HttpError(422, 'New password must be at least 8 characters');
+  const user = await prisma.user.findUnique({ where: { id: req.user.id } });
+  if (!(await bcrypt.compare(String(current || ''), user.passwordHash))) throw new HttpError(401, 'Current password is wrong');
+  await prisma.user.update({ where: { id: user.id }, data: { passwordHash: await bcrypt.hash(String(next), 12) } });
+  res.json({ ok: true });
+}));
 
-    const org = await prisma.org.create({ data: { name: orgName, slug: orgSlug } });
-    const user = await prisma.user.create({
-      data: { email, passwordHash, name, role: 'ADMIN', orgId: org.id },
-    });
+// ─── Team management (admins) ────────────────────────────────────────────────
+router.get('/users', authenticate, ah(async (req, res) => {
+  const users = await prisma.user.findMany({ where: { orgId: req.user.orgId }, orderBy: { createdAt: 'asc' } });
+  res.json(users.map(publicUser));
+}));
 
-    const token = signToken({ id: user.id, orgId: org.id, role: user.role });
-    res.status(201).json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
-  } catch (err) { next(err); }
-});
+router.post('/users', authenticate, requireRole('ADMIN'), ah(async (req, res) => {
+  const email = String(req.body.email || '').trim().toLowerCase();
+  const { name, password, role = 'MANAGER' } = req.body;
+  if (!email || !name) throw new HttpError(422, 'Name and email are required');
+  if (!password || String(password).length < 8) throw new HttpError(422, 'Password must be at least 8 characters');
+  if (!ROLES.includes(role)) throw new HttpError(422, 'Unknown role');
+  const user = await prisma.user.create({
+    data: { email, name, role, orgId: req.user.orgId, passwordHash: await bcrypt.hash(String(password), 12) },
+  });
+  res.status(201).json(publicUser(user));
+}));
 
-// POST /api/auth/login
-router.post('/login', [
-  body('email').isEmail(),
-  body('password').notEmpty(),
-], async (req, res, next) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) return res.status(422).json({ errors: errors.array() });
+router.patch('/users/:id', authenticate, requireRole('ADMIN'), ah(async (req, res) => {
+  const user = await prisma.user.findFirst({ where: { id: req.params.id, orgId: req.user.orgId } });
+  if (!user) throw new HttpError(404, 'User not found');
+  const data = {};
+  if (req.body.name) data.name = req.body.name;
+  if (req.body.role) {
+    if (!ROLES.includes(req.body.role)) throw new HttpError(422, 'Unknown role');
+    if (user.id === req.user.id && req.body.role !== 'ADMIN') throw new HttpError(422, 'You cannot remove your own admin access');
+    data.role = req.body.role;
+  }
+  if (req.body.password) {
+    if (String(req.body.password).length < 8) throw new HttpError(422, 'Password must be at least 8 characters');
+    data.passwordHash = await bcrypt.hash(String(req.body.password), 12);
+  }
+  const updated = await prisma.user.update({ where: { id: user.id }, data });
+  forgetUser(user.id);
+  res.json(publicUser(updated));
+}));
 
-  try {
-    const { email, password } = req.body;
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) return res.status(401).json({ error: 'Invalid credentials' });
-
-    const valid = await bcrypt.compare(password, user.passwordHash);
-    if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
-
-    const token = signToken({ id: user.id, orgId: user.orgId, role: user.role });
-    res.json({ token, user: { id: user.id, name: user.name, email: user.email, role: user.role } });
-  } catch (err) { next(err); }
-});
-
-// GET /api/auth/me
-router.get('/me', authenticate, async (req, res, next) => {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user.id },
-      select: { id: true, name: true, email: true, role: true, org: { select: { id: true, name: true, plan: true } } },
-    });
-    res.json(user);
-  } catch (err) { next(err); }
-});
+router.delete('/users/:id', authenticate, requireRole('ADMIN'), ah(async (req, res) => {
+  if (req.params.id === req.user.id) throw new HttpError(422, 'You cannot delete your own account');
+  const user = await prisma.user.findFirst({ where: { id: req.params.id, orgId: req.user.orgId } });
+  if (!user) throw new HttpError(404, 'User not found');
+  await prisma.user.delete({ where: { id: user.id } });
+  forgetUser(user.id);
+  res.status(204).send();
+}));
 
 module.exports = router;

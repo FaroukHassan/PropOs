@@ -1,63 +1,55 @@
-// backend/src/index.js
+// backend/src/index.js — PropOS API (Sakanly edition)
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 
-const authRoutes        = require('./routes/auth');
-const propertiesRoutes  = require('./routes/properties');
-const tenantsRoutes     = require('./routes/tenants');
-const leasesRoutes      = require('./routes/leases');
-const paymentsRoutes    = require('./routes/payments');
-const maintenanceRoutes = require('./routes/maintenance');
-const financeRoutes     = require('./routes/finance');
-const reportsRoutes     = require('./routes/reports');
-const { errorHandler }  = require('./middleware/errorHandler');
-const { authenticate }  = require('./middleware/auth');
-const { resolveTenant } = require('./middleware/tenant');
+const { errorHandler } = require('./middleware/errorHandler');
+const { authenticate, writeGuard } = require('./middleware/auth');
+const portfolio = require('./routes/portfolio');
+const occupancy = require('./routes/occupancy');
+const money = require('./routes/money');
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-// ─── Middleware ───────────────────────────────────────────────────────────────
+app.set('trust proxy', 1);
 app.use(helmet());
 
-// CORS — allow multiple origins for multi-tenant subdomains
+// CORS: comma-separated list of allowed front-end origins
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173')
-  .split(',')
-  .map(o => o.trim());
+  .split(',').map(o => o.trim().replace(/\/$/, '')).filter(Boolean);
 app.use(cors({
-  origin: (origin, cb) => {
-    if (!origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')) return cb(null, true);
-    // Allow any subdomain of the main domain
-    const mainDomain = process.env.MAIN_DOMAIN; // e.g. propos.app
-    if (mainDomain && origin.endsWith(mainDomain)) return cb(null, true);
-    cb(null, false);
-  },
-  credentials: true,
+  origin: (origin, cb) => cb(null, !origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')),
 }));
-app.use(morgan('dev'));
-app.use(express.json());
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'tiny' : 'dev'));
+app.use(express.json({ limit: '5mb' }));
 
-// ─── Tenant resolution (subdomain → org) ─────────────────────────────────────
-app.use(resolveTenant);
-
-// ─── Public routes ────────────────────────────────────────────────────────────
-app.use('/api/auth', authRoutes);
-
-// ─── Protected routes ─────────────────────────────────────────────────────────
-app.use('/api/properties',  authenticate, propertiesRoutes);
-app.use('/api/tenants',     authenticate, tenantsRoutes);
-app.use('/api/leases',      authenticate, leasesRoutes);
-app.use('/api/payments',    authenticate, paymentsRoutes);
-app.use('/api/maintenance', authenticate, maintenanceRoutes);
-app.use('/api/finance',     authenticate, financeRoutes);
-app.use('/api/reports',     authenticate, reportsRoutes);
-
-// ─── Health check ─────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ status: 'ok', ts: new Date() }));
 
-// ─── Error handler ────────────────────────────────────────────────────────────
+app.use('/api/auth', require('./routes/auth'));
+
+const api = express.Router();
+api.use(authenticate, writeGuard);
+api.use('/buildings', portfolio.buildings);
+api.use('/landlords', portfolio.landlords);
+api.use('/units', portfolio.units);
+api.use('/spaces', portfolio.spaces);
+api.use('/tenants', occupancy.tenants);
+api.use('/leases', occupancy.leases);
+api.use('/bookings', occupancy.bookings);
+api.use('/transactions', money.transactions);
+api.use('/cheques', money.cheques);
+api.use('/maintenance', money.maintenance);
+api.use('/import', require('./routes/import'));
+api.use('/', require('./routes/reports'));
+app.use('/api', api);
+
+app.use((req, res) => res.status(404).json({ error: 'Not found' }));
 app.use(errorHandler);
 
-app.listen(PORT, () => console.log(`PropOS API running on :${PORT}`));
+if (require.main === module) {
+  app.listen(PORT, () => console.log(`PropOS API running on :${PORT}`));
+}
+
+module.exports = app;

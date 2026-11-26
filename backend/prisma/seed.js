@@ -1,189 +1,177 @@
 // backend/prisma/seed.js
-// Run: node prisma/seed.js
-const { PrismaClient } = require('@prisma/client');
+// Creates the Sakanly organisation and team logins. Safe to run more than once.
+//   node prisma/seed.js            → org + users only (use this for the real system)
+//   SEED_DEMO=1 node prisma/seed.js → also adds sample buildings, tenants and money (for trying it out)
+// Passwords: set SEED_PASSWORD, otherwise a random one is generated for each new user and printed once.
 const bcrypt = require('bcryptjs');
-const prisma = new PrismaClient();
+const crypto = require('crypto');
+const prisma = require('../src/db');
+
+const TEAM = [
+  { name: 'Farouk Hassan', email: 'farouk@sakanly.com', role: 'ADMIN' },
+  { name: 'Mohamed Khalil', email: 'khalil@sakanly.com', role: 'ADMIN' },
+  { name: 'Ahmed Fawzy', email: 'info@sakanly.com', role: 'MANAGER' },
+];
+
+const d = s => new Date(`${s}T00:00:00Z`);
+const today = new Date();
+const thisMonth = (day, offset = 0) => new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + offset, day));
 
 async function main() {
-  console.log('Seeding database...');
-
-  const passwordHash = await bcrypt.hash('password123', 12);
-
-  // ─── Org 1: Sakanly (Farouk's company) ─────────────────────────────────────
-  const sakanly = await prisma.org.upsert({
+  const org = await prisma.org.upsert({
     where: { slug: 'sakanly' },
     update: {},
-    create: { name: 'Sakanly', slug: 'sakanly', plan: 'PRO' },
+    create: { name: 'Sakanly Stay Holiday Homes', slug: 'sakanly', currency: 'AED' },
   });
 
-  await prisma.user.upsert({
-    where: { email: 'farouk@sakanly.com' },
-    update: {},
-    create: {
-      email: 'farouk@sakanly.com',
-      passwordHash,
-      name: 'Farouk Hassan',
-      role: 'ADMIN',
-      orgId: sakanly.id,
-    },
-  });
-
-  // Sakanly Properties
-  const nileView = await prisma.property.create({
-    data: { name: 'Nile View Residences', address: '45 Corniche El Nil', city: 'Cairo', type: 'RESIDENTIAL', orgId: sakanly.id },
-  });
-  const madiApts = await prisma.property.create({
-    data: { name: 'Maadi Garden Apartments', address: '12 Street 9', city: 'Maadi', type: 'RESIDENTIAL', orgId: sakanly.id },
-  });
-  const tagamo3 = await prisma.property.create({
-    data: { name: 'Tagamoa Business Center', address: '88 90th Street', city: 'New Cairo', type: 'COMMERCIAL', orgId: sakanly.id },
-  });
-  const sahel = await prisma.property.create({
-    data: { name: 'Sahel Beach Villas', address: 'Marina 5, KM 130', city: 'North Coast', type: 'SHORT_TERM', orgId: sakanly.id },
-  });
-
-  // Sakanly Units
-  const sUnits = await Promise.all([
-    prisma.unit.create({ data: { propertyId: nileView.id,  number: '12A', floor: 12, bedrooms: 3, bathrooms: 2,   sqft: 1800, rentAmount: 4500 } }),
-    prisma.unit.create({ data: { propertyId: nileView.id,  number: '8B',  floor: 8,  bedrooms: 2, bathrooms: 1,   sqft: 1200, rentAmount: 3200 } }),
-    prisma.unit.create({ data: { propertyId: nileView.id,  number: '3C',  floor: 3,  bedrooms: 1, bathrooms: 1,   sqft: 750,  rentAmount: 2100 } }),
-    prisma.unit.create({ data: { propertyId: madiApts.id,  number: 'G1',  floor: 0,  bedrooms: 3, bathrooms: 2,   sqft: 1600, rentAmount: 3800 } }),
-    prisma.unit.create({ data: { propertyId: madiApts.id,  number: 'A5',  floor: 2,  bedrooms: 2, bathrooms: 1.5, sqft: 1100, rentAmount: 2800 } }),
-    prisma.unit.create({ data: { propertyId: tagamo3.id,   number: 'OF-1', floor: 1, bedrooms: 0, bathrooms: 1,   sqft: 600,  rentAmount: 5000 } }),
-    prisma.unit.create({ data: { propertyId: tagamo3.id,   number: 'OF-2', floor: 2, bedrooms: 0, bathrooms: 1,   sqft: 450,  rentAmount: 3500 } }),
-    prisma.unit.create({ data: { propertyId: sahel.id,     number: 'V-01', floor: 1, bedrooms: 4, bathrooms: 3,   sqft: 2200, rentAmount: 8000 } }),
-    prisma.unit.create({ data: { propertyId: sahel.id,     number: 'V-02', floor: 1, bedrooms: 3, bathrooms: 2,   sqft: 1800, rentAmount: 6500 } }),
-  ]);
-
-  // Sakanly Tenants
-  const sTenants = await Promise.all([
-    prisma.tenant.create({ data: { name: 'Ahmed Mostafa',    email: 'ahmed.m@email.com',    phone: '+20 100 111 2233', orgId: sakanly.id } }),
-    prisma.tenant.create({ data: { name: 'Nour El-Din',      email: 'nour@email.com',       phone: '+20 100 222 3344', orgId: sakanly.id } }),
-    prisma.tenant.create({ data: { name: 'Yasmin Khalil',    email: 'yasmin.k@email.com',   phone: '+20 100 333 4455', orgId: sakanly.id } }),
-    prisma.tenant.create({ data: { name: 'Hassan Ibrahim',   email: 'hassan.i@email.com',   phone: '+20 100 444 5566', orgId: sakanly.id } }),
-    prisma.tenant.create({ data: { name: 'Sara Abdel-Fattah',email: 'sara.af@email.com',    phone: '+20 100 555 6677', orgId: sakanly.id } }),
-    prisma.tenant.create({ data: { name: 'TechStart Inc.',   email: 'info@techstart.com',   phone: '+20 2 2222 3333',  orgId: sakanly.id } }),
-    prisma.tenant.create({ data: { name: 'Global Imports Co.',email:'contact@globalimports.com', phone: '+20 2 3333 4444', orgId: sakanly.id } }),
-  ]);
-
-  // Sakanly Leases
-  const sLeases = await Promise.all([
-    prisma.lease.create({ data: { unitId: sUnits[0].id, tenantId: sTenants[0].id, startDate: new Date('2025-01-01'), endDate: new Date('2026-12-31'), rentAmount: 4500, deposit: 9000 } }),
-    prisma.lease.create({ data: { unitId: sUnits[1].id, tenantId: sTenants[1].id, startDate: new Date('2025-03-01'), endDate: new Date('2026-02-28'), rentAmount: 3200, deposit: 6400 } }),
-    prisma.lease.create({ data: { unitId: sUnits[2].id, tenantId: sTenants[2].id, startDate: new Date('2024-06-01'), endDate: new Date('2026-05-31'), rentAmount: 2100, deposit: 4200 } }),
-    prisma.lease.create({ data: { unitId: sUnits[3].id, tenantId: sTenants[3].id, startDate: new Date('2025-02-01'), endDate: new Date('2027-01-31'), rentAmount: 3800, deposit: 7600 } }),
-    prisma.lease.create({ data: { unitId: sUnits[4].id, tenantId: sTenants[4].id, startDate: new Date('2024-09-01'), endDate: new Date('2025-08-31'), rentAmount: 2800, deposit: 5600 } }),
-    prisma.lease.create({ data: { unitId: sUnits[5].id, tenantId: sTenants[5].id, startDate: new Date('2025-01-01'), endDate: new Date('2027-12-31'), rentAmount: 5000, deposit: 15000 } }),
-    prisma.lease.create({ data: { unitId: sUnits[6].id, tenantId: sTenants[6].id, startDate: new Date('2025-04-01'), endDate: new Date('2026-03-31'), rentAmount: 3500, deposit: 10500 } }),
-  ]);
-
-  // Sakanly Payments (last 3 months)
-  const now = new Date();
-  for (let monthsAgo = 0; monthsAgo < 3; monthsAgo++) {
-    const dueDate = new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1);
-    const statuses = monthsAgo === 0
-      ? ['PAID', 'PAID', 'LATE', 'PAID', 'PENDING', 'PAID', 'PENDING']
-      : ['PAID', 'PAID', 'PAID', 'PAID', 'PAID', 'PAID', 'PAID'];
-
-    await Promise.all(sLeases.map((lease, i) =>
-      prisma.payment.create({
-        data: {
-          leaseId: lease.id,
-          amount: lease.rentAmount,
-          dueDate,
-          status: statuses[i],
-          ...(statuses[i] === 'PAID' ? { paidDate: new Date(dueDate.getFullYear(), dueDate.getMonth(), 3 + Math.floor(Math.random() * 5)), method: 'BANK_TRANSFER' } : {}),
-        },
-      })
-    ));
+  for (const member of TEAM) {
+    const exists = await prisma.user.findUnique({ where: { email: member.email } });
+    if (exists) { console.log(`• ${member.email} already exists`); continue; }
+    const password = process.env.SEED_PASSWORD || crypto.randomBytes(9).toString('base64url');
+    await prisma.user.create({ data: { ...member, orgId: org.id, passwordHash: await bcrypt.hash(password, 12) } });
+    console.log(`✓ ${member.email}  password: ${password}`);
   }
 
-  // Sakanly Maintenance Requests
-  await Promise.all([
-    prisma.maintenanceRequest.create({ data: { unitId: sUnits[0].id, title: 'AC not cooling properly',    description: 'The AC in the master bedroom blows warm air', category: 'HVAC',       priority: 'HIGH',   status: 'OPEN' } }),
-    prisma.maintenanceRequest.create({ data: { unitId: sUnits[1].id, title: 'Water leak in bathroom',     description: 'Small leak under the bathroom sink',          category: 'PLUMBING',   priority: 'URGENT', status: 'IN_PROGRESS', assignedTo: 'Mohamed Plumbing Co.' } }),
-    prisma.maintenanceRequest.create({ data: { unitId: sUnits[3].id, title: 'Broken door lock',           description: 'Front door lock is jammed',                    category: 'GENERAL',    priority: 'HIGH',   status: 'OPEN' } }),
-    prisma.maintenanceRequest.create({ data: { unitId: sUnits[5].id, title: 'Flickering office lights',   description: 'Fluorescent lights in main area flickering',   category: 'ELECTRICAL', priority: 'NORMAL', status: 'RESOLVED', resolvedAt: new Date(), cost: 350 } }),
-    prisma.maintenanceRequest.create({ data: { unitId: sUnits[7].id, title: 'Pool filter needs cleaning', description: 'Villa pool filter clogged',                    category: 'GENERAL',    priority: 'NORMAL', status: 'OPEN' } }),
-  ]);
+  if (!process.env.SEED_DEMO) return;
+  if (await prisma.building.count({ where: { orgId: org.id } })) {
+    console.log('Sample data skipped: buildings already exist.');
+    return;
+  }
+  const orgId = org.id;
 
-  // Sakanly Expenses
-  const expDate = new Date();
-  await Promise.all([
-    prisma.expense.create({ data: { orgId: sakanly.id, category: 'INSURANCE',   description: 'Building insurance — Nile View',       amount: 4200, date: expDate } }),
-    prisma.expense.create({ data: { orgId: sakanly.id, category: 'MAINTENANCE', description: 'HVAC annual service — all buildings',   amount: 2800, date: expDate, vendor: 'CoolTech HVAC' } }),
-    prisma.expense.create({ data: { orgId: sakanly.id, category: 'UTILITIES',   description: 'Common area electricity — March',      amount: 1450, date: expDate } }),
-    prisma.expense.create({ data: { orgId: sakanly.id, category: 'TAX',         description: 'Property tax Q1 2026',                 amount: 6300, date: expDate } }),
-    prisma.expense.create({ data: { orgId: sakanly.id, category: 'MANAGEMENT',  description: 'Property management software license', amount: 500,  date: expDate } }),
-  ]);
+  // ─── Buildings & landlords ────────────────────────────────────────────────
+  const noura = await prisma.building.create({ data: { orgId, name: 'Sheikha Noura', area: 'Barsha Heights (TECOM)' } });
+  const fahd = await prisma.building.create({ data: { orgId, name: 'Al Fahd 2', area: 'Barsha Heights (TECOM)' } });
+  const atria = await prisma.building.create({ data: { orgId, name: 'Millennium Atria', area: 'Business Bay' } });
+  const jvt = await prisma.building.create({ data: { orgId, name: 'Novotel Residences', area: 'JVT' } });
 
-  // ─── Org 2: Demo Org (Nile Properties — original demo data) ────────────────
-  const demoOrg = await prisma.org.upsert({
-    where: { slug: 'demo' },
-    update: {},
-    create: { name: 'Nile Properties LLC', slug: 'demo', plan: 'PRO' },
+  const sultan = await prisma.landlord.create({ data: { orgId, name: 'Saeed Al Mansoori', phone: '+971 50 000 0001' } });
+  const rashid = await prisma.landlord.create({ data: { orgId, name: 'Rashid Holdings', phone: '+971 50 000 0002' } });
+  const owner = await prisma.landlord.create({ data: { orgId, name: 'Layla Haddad', phone: '+971 50 000 0003', email: 'owner@example.com' } });
+
+  // ─── Partition apartments ─────────────────────────────────────────────────
+  const partitionUnits = [
+    { b: noura, number: '2803', landlord: rashid, rent: 120000, occ: 'MIX', spaces: 12, base: 1700 },
+    { b: noura, number: '1904', landlord: rashid, rent: 115000, occ: 'MIX', spaces: 10, base: 1600 },
+    { b: fahd, number: '706', landlord: sultan, rent: 95000, occ: 'MIX', spaces: 7, base: 1750 },
+    { b: fahd, number: '811', landlord: sultan, rent: 90000, occ: 'LADIES', spaces: 6, base: 1800 },
+  ];
+  const tenantNames = ['Aisha Rahman', 'Omar Siddiqui', 'Priya Nair', 'Bilal Ahmed', 'Maria Santos', 'Youssef Adel', 'Farah Nasser', 'Joy Reyes',
+    'Reem Adel', 'Kareem Nabil', 'Noor Ali', 'Rania Saleh', 'Ali Raza', 'Grace Mensah', 'Dana Karim', 'Samar Ismail', 'Manal Fathi',
+    'Ruma Begum', 'Mei Lin', 'Huda Samir', 'Lina Haddad', 'Zainab Khan', 'Asma Qureshi', 'Rita Gomes', 'Nadine Aziz'];
+  let t = 0;
+  const lastMonthKey = (() => { const x = thisMonth(1, -1); return `${x.getUTCFullYear()}-${String(x.getUTCMonth() + 1).padStart(2, '0')}`; })();
+  const curMonthKey = (() => { const x = thisMonth(1); return `${x.getUTCFullYear()}-${String(x.getUTCMonth() + 1).padStart(2, '0')}`; })();
+
+  for (const pu of partitionUnits) {
+    const unit = await prisma.unit.create({
+      data: {
+        orgId, buildingId: pu.b.id, number: pu.number, mode: 'PARTITIONS', arrangement: 'MASTER_LEASE',
+        landlordId: pu.landlord.id, landlordRent: pu.rent, occupancy: pu.occ, bedrooms: 3, bathrooms: 3,
+        amenities: 'Private fridge, wardrobe, shared balcony, gym, pool',
+      },
+    });
+    for (let i = 1; i <= pu.spaces; i++) {
+      const rate = pu.base + ((i * 137) % 5) * 100;
+      const state = i % 5 === 0 ? 'AVAILABLE' : i % 7 === 0 ? 'NOT_READY' : 'OCCUPIED';
+      const space = await prisma.space.create({
+        data: {
+          orgId, unitId: unit.id, code: i === pu.spaces && pu.number === '811' ? 'Bed 1' : `P${i}`,
+          kind: i === pu.spaces && pu.number === '811' ? 'BED' : 'PARTITION',
+          monthlyRate: rate, deposit: pu.occ === 'LADIES' ? 500 : 400, status: state,
+          availableFrom: state === 'AVAILABLE' ? thisMonth(1, 1) : null,
+        },
+      });
+      if (state !== 'OCCUPIED') continue;
+      const tenant = await prisma.tenant.create({ data: { orgId, name: tenantNames[t % tenantNames.length], phone: `+971 55 ${String(1000000 + t * 7919).slice(-7)}` } });
+      t++;
+      const lease = await prisma.lease.create({
+        data: {
+          orgId, tenantId: tenant.id, unitId: unit.id, spaceId: space.id, startDate: thisMonth(1, -(2 + (i % 4))),
+          rent: rate, deposit: space.deposit, depositPaid: space.deposit, dueDay: 1, status: 'ACTIVE',
+        },
+      });
+      // last month fully paid; this month most paid, a few partial or unpaid
+      await prisma.transaction.create({ data: { orgId, date: thisMonth(2, -1), type: 'INCOME', category: 'RENT', description: 'Rent collection', amount: rate, unitId: unit.id, spaceId: space.id, leaseId: lease.id, periodMonth: lastMonthKey } });
+      if (i % 6 !== 3) {
+        const amt = i % 4 === 2 ? Math.round(rate / 2) : rate;
+        await prisma.transaction.create({ data: { orgId, date: thisMonth(Math.min(today.getUTCDate(), 1 + (i % 5))), type: 'INCOME', category: 'RENT', description: amt < rate ? 'Rent (part payment)' : 'Rent collection', amount: amt, method: i % 2 ? 'CASH' : 'BANK', unitId: unit.id, spaceId: space.id, leaseId: lease.id, periodMonth: curMonthKey } });
+      }
+    }
+    for (const off of [-1, 0]) {
+      await prisma.transaction.create({ data: { orgId, date: thisMonth(3, off), type: 'EXPENSE', category: 'DEWA', description: `DEWA - Apt ${pu.number}`, amount: 1150 + (Number(pu.number) % 7) * 120, unitId: unit.id, method: 'BANK' } });
+    }
+    // Quarterly cheques to the landlord for the year
+    for (let q = 0; q < 4; q++) {
+      const due = thisMonth(15, q * 3 - 2);
+      await prisma.cheque.create({
+        data: {
+          orgId, direction: 'OUT', number: `${pu.number}00${q + 1}`, bank: 'Wio', amount: pu.rent / 4, dueDate: due,
+          status: due < today ? 'CLEARED' : 'PENDING', partyName: pu.landlord.name, unitId: unit.id, landlordId: pu.landlord.id,
+        },
+      });
+    }
+  }
+
+  // ─── Holiday homes (one managed for an owner) ─────────────────────────────
+  const hh1 = await prisma.unit.create({ data: { orgId, buildingId: atria.id, number: '1408', mode: 'HOLIDAY', arrangement: 'MANAGEMENT', landlordId: owner.id, managementFee: 20, bedrooms: 1, bathrooms: 1, nightlyRate: 450, occupancy: 'FAMILY', amenities: 'Burj view, pool, gym' } });
+  const hh2 = await prisma.unit.create({ data: { orgId, buildingId: atria.id, number: '2210', mode: 'HOLIDAY', arrangement: 'MASTER_LEASE', landlordId: rashid.id, landlordRent: 85000, bedrooms: 1, bathrooms: 1, nightlyRate: 520, occupancy: 'FAMILY' } });
+  const guests = [
+    { unit: hh1, name: 'James Whitfield', ch: 'AIRBNB', from: -20, n: 4, rate: 430 },
+    { unit: hh1, name: 'Chen Wei', ch: 'BOOKING', from: -12, n: 6, rate: 460 },
+    { unit: hh1, name: 'Ahmed Al Sayed', ch: 'DIRECT', from: -3, n: 5, rate: 420 },
+    { unit: hh1, name: 'Elena Petrova', ch: 'AIRBNB', from: 4, n: 3, rate: 480 },
+    { unit: hh2, name: 'Ravi Menon', ch: 'BOOKING', from: -15, n: 7, rate: 500 },
+    { unit: hh2, name: 'Sophie Laurent', ch: 'AIRBNB', from: -5, n: 4, rate: 540 },
+    { unit: hh2, name: 'Mohammed Saeed', ch: 'DIRECT', from: 1, n: 2, rate: 520 },
+  ];
+  for (const g of guests) {
+    const checkIn = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() + g.from));
+    const checkOut = new Date(checkIn.getTime() + g.n * 86400000);
+    const total = g.rate * g.n;
+    const fee = g.ch === 'AIRBNB' ? total * 0.15 : g.ch === 'BOOKING' ? total * 0.17 : 0;
+    const status = checkOut <= today ? 'CHECKED_OUT' : checkIn <= today ? 'CHECKED_IN' : 'CONFIRMED';
+    const b = await prisma.booking.create({ data: { orgId, unitId: g.unit.id, guestName: g.name, channel: g.ch, checkIn, checkOut, guests: 2, totalAmount: total, channelFee: Math.round(fee), cleaningFee: 150, tourismFee: g.n * 15, status } });
+    if (status !== 'CONFIRMED') {
+      await prisma.transaction.create({ data: { orgId, date: checkIn, type: 'INCOME', category: 'BOOKING', description: `${g.ch === 'DIRECT' ? 'Direct' : g.ch === 'AIRBNB' ? 'Airbnb' : 'Booking.com'} payout — ${g.name}`, amount: Math.round(total - fee), method: 'BANK', unitId: g.unit.id, bookingId: b.id } });
+    }
+  }
+  await prisma.transaction.create({ data: { orgId, date: thisMonth(5), type: 'EXPENSE', category: 'CLEANING', description: 'Turnover cleaning — Atria 1408', amount: 450, unitId: hh1.id } });
+
+  // ─── Long-term unit with tenant cheques ───────────────────────────────────
+  const lt = await prisma.unit.create({ data: { orgId, buildingId: jvt.id, number: '905', mode: 'LONG_TERM', arrangement: 'MANAGEMENT', landlordId: owner.id, managementFee: 5, bedrooms: 2, bathrooms: 2, monthlyRent: 7500, occupancy: 'FAMILY' } });
+  const family = await prisma.tenant.create({ data: { orgId, name: 'Khaled Mansour', phone: '+971 52 000 0101', nationality: 'Jordanian' } });
+  const ltLease = await prisma.lease.create({ data: { orgId, tenantId: family.id, unitId: lt.id, startDate: thisMonth(1, -4), endDate: thisMonth(1, 8), rent: 90000, rentPeriod: 'YEARLY', deposit: 4500, depositPaid: 4500, status: 'ACTIVE' } });
+  for (let q = 0; q < 4; q++) {
+    const due = thisMonth(1, q * 3 - 4);
+    const cleared = due < today;
+    const c = await prisma.cheque.create({ data: { orgId, direction: 'IN', number: `00045${q + 1}`, bank: 'Emirates NBD', amount: 22500, dueDate: due, status: cleared ? 'CLEARED' : 'PENDING', partyName: family.name, unitId: lt.id, leaseId: ltLease.id } });
+    if (cleared) await prisma.transaction.create({ data: { orgId, date: due, type: 'INCOME', category: 'RENT', description: `Cheque ${c.number} — ${family.name}`, amount: 22500, method: 'CHEQUE', unitId: lt.id, leaseId: ltLease.id, chequeId: c.id } });
+  }
+
+  // ─── Company overheads ────────────────────────────────────────────────────
+  for (const off of [-1, 0]) {
+    await prisma.transaction.createMany({
+      data: [
+        { orgId, date: thisMonth(3, off), type: 'EXPENSE', category: 'SALARIES', description: 'Team salaries', amount: 20000, method: 'BANK' },
+        { orgId, date: thisMonth(4, off), type: 'EXPENSE', category: 'INTERNET', description: 'du internet — all apartments', amount: 2390, method: 'BANK' },
+        { orgId, date: thisMonth(8, off), type: 'EXPENSE', category: 'CLEANING', description: 'Cleaner salary', amount: 1250 },
+        { orgId, date: thisMonth(9, off), type: 'EXPENSE', category: 'MAINTENANCE', description: 'AC servicing', amount: 760, estimated: off === 0 },
+      ],
+    });
+  }
+
+  const units = await prisma.unit.findMany({ where: { orgId, mode: 'PARTITIONS' } });
+  await prisma.maintenanceRequest.createMany({
+    data: [
+      { orgId, unitId: units[0].id, spaceCode: 'P4', title: 'AC not cooling', category: 'AC', priority: 'HIGH' },
+      { orgId, unitId: units[2].id, title: 'Kitchen sink leaking', category: 'PLUMBING', priority: 'NORMAL', status: 'IN_PROGRESS', assignedTo: 'AC technician' },
+      { orgId, unitId: units[3].id, spaceCode: 'P2', title: 'Light fixture broken', category: 'ELECTRICAL', priority: 'LOW' },
+    ],
   });
-
-  await prisma.user.upsert({
-    where: { email: 'admin@nileprops.com' },
-    update: {},
-    create: {
-      email: 'admin@nileprops.com',
-      passwordHash,
-      name: 'Ahmed Hassan',
-      role: 'ADMIN',
-      orgId: demoOrg.id,
-    },
-  });
-
-  const towerA = await prisma.property.create({ data: { name: 'Nile Tower A', address: '12 Tahrir Street', city: 'Cairo', type: 'RESIDENTIAL', orgId: demoOrg.id } });
-  const villas = await prisma.property.create({ data: { name: 'Garden Villas', address: '5 Palm Avenue', city: 'Giza', type: 'RESIDENTIAL', orgId: demoOrg.id } });
-
-  const dUnits = await Promise.all([
-    prisma.unit.create({ data: { propertyId: towerA.id, number: '3B', floor: 3, bedrooms: 2, bathrooms: 1,   sqft: 900,  rentAmount: 1850 } }),
-    prisma.unit.create({ data: { propertyId: towerA.id, number: '1C', floor: 1, bedrooms: 1, bathrooms: 1,   sqft: 650,  rentAmount: 1600 } }),
-    prisma.unit.create({ data: { propertyId: villas.id, number: '7A', floor: 1, bedrooms: 3, bathrooms: 2,   sqft: 1400, rentAmount: 2100 } }),
-    prisma.unit.create({ data: { propertyId: villas.id, number: '5D', floor: 1, bedrooms: 2, bathrooms: 1.5, sqft: 1100, rentAmount: 2400 } }),
-  ]);
-
-  const dTenants = await Promise.all([
-    prisma.tenant.create({ data: { name: 'Sarah Johnson', email: 'sarah@email.com', phone: '+1 555 0101', orgId: demoOrg.id } }),
-    prisma.tenant.create({ data: { name: 'Lena Torres',   email: 'lena@email.com',  phone: '+1 555 0102', orgId: demoOrg.id } }),
-    prisma.tenant.create({ data: { name: 'Mike Chen',     email: 'mike@email.com',  phone: '+1 555 0103', orgId: demoOrg.id } }),
-    prisma.tenant.create({ data: { name: 'Omar Khalil',   email: 'omar@email.com',  phone: '+20 100 123', orgId: demoOrg.id } }),
-  ]);
-
-  const dLeases = await Promise.all([
-    prisma.lease.create({ data: { unitId: dUnits[0].id, tenantId: dTenants[0].id, startDate: new Date('2024-01-01'), endDate: new Date('2025-12-31'), rentAmount: 1850, deposit: 3700 } }),
-    prisma.lease.create({ data: { unitId: dUnits[1].id, tenantId: dTenants[1].id, startDate: new Date('2023-06-01'), endDate: new Date('2025-05-31'), rentAmount: 1600, deposit: 3200 } }),
-    prisma.lease.create({ data: { unitId: dUnits[2].id, tenantId: dTenants[2].id, startDate: new Date('2024-03-01'), endDate: new Date('2026-02-28'), rentAmount: 2100, deposit: 4200 } }),
-    prisma.lease.create({ data: { unitId: dUnits[3].id, tenantId: dTenants[3].id, startDate: new Date('2022-09-01'), endDate: new Date('2025-08-31'), rentAmount: 2400, deposit: 4800 } }),
-  ]);
-
-  const thisMonth = new Date(); thisMonth.setDate(1);
-  await Promise.all([
-    prisma.payment.create({ data: { leaseId: dLeases[0].id, amount: 1850, dueDate: thisMonth, status: 'PAID', paidDate: new Date(), method: 'BANK_TRANSFER' } }),
-    prisma.payment.create({ data: { leaseId: dLeases[1].id, amount: 1600, dueDate: thisMonth, status: 'LATE' } }),
-    prisma.payment.create({ data: { leaseId: dLeases[2].id, amount: 2100, dueDate: thisMonth, status: 'PAID', paidDate: new Date(), method: 'BANK_TRANSFER' } }),
-    prisma.payment.create({ data: { leaseId: dLeases[3].id, amount: 2400, dueDate: thisMonth, status: 'OVERDUE' } }),
-  ]);
-
-  await Promise.all([
-    prisma.maintenanceRequest.create({ data: { unitId: dUnits[0].id, title: 'Boiler not working', description: 'Boiler not heating', category: 'HVAC', priority: 'URGENT', status: 'OPEN' } }),
-    prisma.maintenanceRequest.create({ data: { unitId: dUnits[1].id, title: 'Leaking faucet', description: 'Kitchen faucet dripping', category: 'PLUMBING', priority: 'HIGH', status: 'IN_PROGRESS' } }),
-    prisma.maintenanceRequest.create({ data: { unitId: dUnits[2].id, title: 'Light bulb out', description: 'Living room light out', category: 'ELECTRICAL', priority: 'NORMAL', status: 'OPEN' } }),
-  ]);
-
-  await Promise.all([
-    prisma.expense.create({ data: { orgId: demoOrg.id, category: 'INSURANCE',   description: 'Monthly property insurance', amount: 2100, date: expDate } }),
-    prisma.expense.create({ data: { orgId: demoOrg.id, category: 'MAINTENANCE', description: 'Plumbing repair Unit 1C',    amount: 380,  date: expDate, vendor: 'ABC Plumbing' } }),
-    prisma.expense.create({ data: { orgId: demoOrg.id, category: 'UTILITIES',   description: 'Common area electricity',    amount: 620,  date: expDate } }),
-  ]);
-
-  console.log('✅ Seed complete!');
-  console.log('');
-  console.log('   Sakanly (Farouk):  farouk@sakanly.com / password123');
-  console.log('   Demo org:          admin@nileprops.com / password123');
+  console.log('✓ Sample data added');
 }
 
-main().catch(console.error).finally(() => prisma.$disconnect());
+main()
+  .catch(e => { console.error(e); process.exit(1); })
+  .finally(() => prisma.$disconnect());

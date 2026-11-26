@@ -1,33 +1,28 @@
 {
   "name": "propos-backend",
-  "version": "1.0.0",
-  "description": "PropOS Property Management API",
+  "version": "2.0.0",
+  "description": "PropOS API — Sakanly edition",
   "main": "src/index.js",
+  "engines": { "node": ">=20" },
   "scripts": {
-    "dev": "nodemon src/index.js",
+    "dev": "node --watch src/index.js",
     "start": "node src/index.js",
-    "build": "npx prisma generate",
-    "postinstall": "npx prisma generate",
-    "db:migrate": "npx prisma migrate deploy",
-    "db:migrate:dev": "npx prisma migrate dev",
-    "db:studio": "npx prisma studio",
+    "postinstall": "prisma generate",
+    "db:migrate": "prisma migrate deploy",
     "db:seed": "node prisma/seed.js",
-    "db:setup": "npx prisma migrate deploy && node prisma/seed.js"
+    "db:demo": "SEED_DEMO=1 node prisma/seed.js",
+    "test": "node --test test/*.test.js"
   },
   "dependencies": {
-    "@prisma/client": "^5.10.0",
-    "prisma": "^5.10.0",
+    "@prisma/adapter-pg": "^6.19.0",
+    "@prisma/client": "^6.19.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
-    "express": "^4.18.3",
-    "express-validator": "^7.0.1",
+    "express": "^4.21.2",
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
-    "stripe": "^14.20.0"
-  },
-  "devDependencies": {
-    "nodemon": "^3.1.0",
-    "prisma": "^5.10.0"
+    "pg": "^8.13.0",
+    "prisma": "^6.19.0"
   }
 }

@@ -29,3 +29,11 @@ prisma/*.db
 
 # Zip archives
 *.zip
+.testprisma/
+prisma.test.config.js
+
+# Real business data must never be committed (the repository is public)
+*.xlsx
+*.xls
+*.csv
+data/

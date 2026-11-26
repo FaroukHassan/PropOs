@@ -1,160 +1,119 @@
 // frontend/src/pages/DashboardPage.jsx
-import { useFetch } from '../hooks/useFetch';
-import { fmt, STATUS_BADGE } from '../utils/api';
-import { Badge, Spinner } from '../components/UI';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-
-function MetricCard({ label, value, change, changeType }) {
-  return (
-    <div className="metric-card">
-      <div className="metric-label">{label}</div>
-      <div className="metric-value">{value}</div>
-      {change && <div className={`metric-change ${changeType}`}>{change}</div>}
-    </div>
-  );
-}
-
-function OccupancyRing({ rate = 0, occupied = 0, total = 0 }) {
-  const r = 28, circ = 2 * Math.PI * r;
-  const dash = (rate / 100) * circ;
-  return (
-    <div style={{ display:'flex', alignItems:'center', gap:20 }}>
-      <div style={{ position:'relative', width:80, height:80, flexShrink:0 }}>
-        <svg viewBox="0 0 80 80" width="80" height="80">
-          <circle cx="40" cy="40" r={r} fill="none" stroke="var(--border)" strokeWidth="10"/>
-          <circle cx="40" cy="40" r={r} fill="none" stroke="var(--blue)" strokeWidth="10"
-            strokeDasharray={`${dash} ${circ}`} strokeDashoffset={circ * 0.25}
-            strokeLinecap="round" style={{ transition:'stroke-dasharray 0.6s' }}/>
-        </svg>
-        <div style={{ position:'absolute', inset:0, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
-          <div style={{ fontSize:16, fontWeight:600 }}>{rate.toFixed(0)}%</div>
-          <div style={{ fontSize:9, color:'var(--text-3)' }}>occupied</div>
-        </div>
-      </div>
-      <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-        <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:12 }}>
-          <div style={{ width:8, height:8, borderRadius:'50%', background:'var(--blue)' }}/>
-          <span>Occupied <strong>{occupied}</strong></span>
-        </div>
-        <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:12 }}>
-          <div style={{ width:8, height:8, borderRadius:'50%', background:'var(--border-2)' }}/>
-          <span>Vacant <strong>{total - occupied}</strong></span>
-        </div>
-      </div>
-    </div>
-  );
-}
+import { Link } from 'react-router-dom';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
+import { useApi, useSticky } from '../lib/hooks';
+import { money, pct, shortDate, monthKey, monthLabel, daysUntil, L, unitName, num } from '../lib/format';
+import { Stat, Spinner, ErrorBox, MonthPicker, Badge } from '../components/ui';
 
 export default function DashboardPage() {
-  const { data: summary,  loading: l1 } = useFetch('/finance/summary');
-  const { data: trend,    loading: l2 } = useFetch('/finance/revenue-trend?months=6');
-  const { data: payments, loading: l3 } = useFetch('/payments?month=' + new Date().toISOString().slice(0,7));
-  const { data: props,    loading: l4 } = useFetch('/properties');
-  const { data: maint,    loading: l5 } = useFetch('/maintenance?status=OPEN');
+  const [month, setMonth] = useSticky('dash_month', monthKey());
+  const { data: d, loading, error, refetch } = useApi(`/dashboard?month=${month}`);
+  if (error) return <ErrorBox error={error} retry={refetch} />;
+  if (loading && !d) return <Spinner />;
 
-  if (l1 || l2 || l3 || l4 || l5) return <Spinner />;
-
-  // Compute occupancy from properties
-  const totalUnits    = (props || []).reduce((s, p) => s + (p.totalUnits    || 0), 0);
-  const occupiedUnits = (props || []).reduce((s, p) => s + (p.occupiedUnits || 0), 0);
-  const occupancyRate = totalUnits > 0 ? (occupiedUnits / totalUnits) * 100 : 0;
-
-  const recentPayments = (payments || []).slice(0, 5);
-  const openMaint      = (maint    || []).slice(0, 4);
-
-  const MAINT_ICONS = { PLUMBING:'🚿', ELECTRICAL:'💡', HVAC:'🔥', APPLIANCE:'🔧', GENERAL:'🔒', STRUCTURAL:'🏗' };
-
+  const trend = d.trend.map(t => ({ ...t, label: monthLabel(t.month).split(' ')[0].slice(0, 3) }));
   return (
-    <>
-      <div className="metrics-grid">
-        <MetricCard label="Total Properties"  value={(props||[]).length}             change={`${totalUnits} total units`} changeType="" />
-        <MetricCard label="Occupancy Rate"    value={fmt.pct(occupancyRate)}         change={`${occupiedUnits} of ${totalUnits} units`} changeType="up" />
-        <MetricCard label="Monthly Revenue"   value={fmt.currency(summary?.totalRevenue)}  change={`NOI: ${fmt.currency(summary?.noi)}`} changeType="up" />
-        <MetricCard label="Collection Rate"   value={fmt.pct(summary?.collectionRate)}     change={summary?.collectionRate >= 90 ? '✓ On target' : '↓ Below 90%'} changeType={summary?.collectionRate >= 90 ? 'up' : 'down'} />
+    <div className="stack">
+      <div className="row-between wrap">
+        <MonthPicker value={month} onChange={setMonth} />
+        <div className="row small muted">
+          {d.cheques.bounced > 0 && <Badge tone="red">{d.cheques.bounced} bounced cheque{d.cheques.bounced > 1 ? 's' : ''}</Badge>}
+          {d.cheques.postponed > 0 && <Badge tone="postponed">{d.cheques.postponed} postponed</Badge>}
+        </div>
       </div>
 
-      <div className="grid-3-1">
-        {/* Revenue trend chart */}
+      <div className="grid g4">
+        <Stat accent label="Net this month" value={money(d.money.net)} sub={`${money(d.money.income)} in · ${money(d.money.expenses)} out`} />
+        <Stat label="Rent collected" value={pct(d.rent.rate)} sub={`${money(d.rent.collected)} of ${money(d.rent.due)}`} progress={d.rent.rate} />
+        <Stat label="Partitions occupied" value={`${d.partitions.occupied} / ${d.partitions.total}`}
+          sub={`${d.partitions.available} available · ${d.partitions.notReady} not ready`} progress={d.partitions.occupancy} />
+        <Stat label="Holiday homes" value={pct(d.holiday.occupancy)}
+          sub={d.holiday.units ? `${d.holiday.bookedNights} nights · ADR ${money(d.holiday.adr)}` : 'No holiday homes yet'} progress={d.holiday.occupancy} />
+      </div>
+
+      <div className="grid g-2-1">
         <div className="card">
-          <div className="card-header">
-            <div className="card-title">Revenue vs Expenses (6 months)</div>
+          <div className="card-head"><div className="card-title">Last 6 months</div><Link to="/reports" className="btn btn-sm">Reports</Link></div>
+          <div style={{ height: 240 }}>
+            <ResponsiveContainer>
+              <BarChart data={trend} margin={{ left: 0, right: 8, top: 4 }}>
+                <CartesianGrid vertical={false} stroke="#eceae4" />
+                <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={12} />
+                <YAxis tickFormatter={v => `${Math.round(v / 1000)}k`} tickLine={false} axisLine={false} fontSize={12} width={40} />
+                <Tooltip formatter={v => money(v)} cursor={{ fill: '#f6f5f2' }} />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+                <Bar dataKey="income" name="Income" fill="#101e37" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="expenses" name="Expenses" fill="#c9a46a" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
-          <ResponsiveContainer width="100%" height={160}>
-            <BarChart data={trend || []} barGap={2} barSize={14}>
-              <XAxis dataKey="month" tick={{ fontSize:11 }} axisLine={false} tickLine={false} />
-              <YAxis tickFormatter={v => `$${(v/1000).toFixed(0)}k`} tick={{ fontSize:11 }} axisLine={false} tickLine={false} width={40} />
-              <Tooltip formatter={(v) => fmt.currency(v)} />
-              <Legend iconSize={8} wrapperStyle={{ fontSize:12 }} />
-              <Bar dataKey="revenue"  name="Revenue"  fill="var(--blue)" radius={[3,3,0,0]} />
-              <Bar dataKey="expenses" name="Expenses" fill="var(--red)"  radius={[3,3,0,0]} opacity={0.7} />
-            </BarChart>
-          </ResponsiveContainer>
         </div>
 
-        {/* Occupancy */}
         <div className="card">
-          <div className="card-header"><div className="card-title">Occupancy</div></div>
-          <OccupancyRing rate={occupancyRate} occupied={occupiedUnits} total={totalUnits} />
-          <div style={{ marginTop:16, paddingTop:12, borderTop:'1px solid var(--border)' }}>
-            {(props||[]).slice(0,3).map(p => (
-              <div key={p.id} style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:5, color:'var(--text-2)' }}>
-                <span>{p.name}</span>
-                <span style={{ color:'var(--text)' }}>{p.occupiedUnits}/{p.totalUnits}</span>
+          <div className="card-head"><div className="card-title">Rent still to collect</div><Link to="/rent" className="btn btn-sm">All</Link></div>
+          {d.rent.unpaid.length === 0 ? <p className="muted small">Everyone has paid for {monthLabel(month)}. 🎉</p> :
+            d.rent.unpaid.map(r => (
+              <div key={r.leaseId} className="list-item">
+                <div className="grow"><div className="bold">{r.tenant}</div><div className="tiny faint">{r.building} {r.unit}{r.space ? ` · ${r.space}` : ''}</div></div>
+                <div className="right"><div className="num bold">{money(r.balance)}</div><Badge value={r.status} map={L.rentStatus} /></div>
               </div>
             ))}
-          </div>
+          {d.rent.outstanding > 0 && <div className="small muted" style={{ marginTop: 8 }}>Total outstanding: <b>{money(d.rent.outstanding)}</b></div>}
         </div>
       </div>
 
-      <div className="grid-2">
-        {/* Recent Payments */}
+      <div className="grid g3">
         <div className="card">
-          <div className="card-header">
-            <div className="card-title">Recent Payments</div>
-          </div>
-          <div className="table-wrap">
-            <table>
-              <thead><tr><th>Tenant</th><th>Amount</th><th>Status</th><th>Due</th></tr></thead>
-              <tbody>
-                {recentPayments.length === 0 && (
-                  <tr><td colSpan={4} style={{ textAlign:'center', color:'var(--text-3)', padding:24 }}>No payments this month</td></tr>
-                )}
-                {recentPayments.map(p => (
-                  <tr key={p.id}>
-                    <td>{p.lease?.tenant?.name || '—'}</td>
-                    <td style={{ fontWeight:500 }}>{fmt.currency(p.amount)}</td>
-                    <td><Badge status={p.status} /></td>
-                    <td style={{ color:'var(--text-3)' }}>{fmt.dateShort(p.dueDate)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Maintenance */}
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title">Open Maintenance</div>
-            <span style={{ fontSize:12, color:'var(--text-3)' }}>{(maint||[]).length} open</span>
-          </div>
-          {openMaint.length === 0
-            ? <div style={{ textAlign:'center', color:'var(--text-3)', padding:24, fontSize:13 }}>🎉 All clear!</div>
-            : openMaint.map(m => (
-              <div className="maint-item" key={m.id}>
-                <div className="maint-icon" style={{ background: m.priority === 'URGENT' ? 'var(--red-bg)' : m.priority === 'HIGH' ? 'var(--amber-bg)' : 'var(--bg-3)' }}>
-                  {MAINT_ICONS[m.category] || '🔧'}
+          <div className="card-head"><div className="card-title">Cheques in the next 14 days</div><Link to="/cheques" className="btn btn-sm">All</Link></div>
+          {d.cheques.dueSoon.length === 0 ? <p className="muted small">Nothing due.</p> : d.cheques.dueSoon.map(c => {
+            const when = c.status === 'POSTPONED' && c.postponedTo ? c.postponedTo : c.dueDate;
+            const days = daysUntil(when);
+            return (
+              <div key={c.id} className="list-item">
+                <div className="grow">
+                  <div className="bold">{c.direction === 'OUT' ? 'Pay' : 'Deposit'} {money(c.amount)}</div>
+                  <div className="tiny faint">{c.unit ? unitName(c.unit) : c.partyName} · #{c.number}</div>
                 </div>
-                <div className="maint-info">
-                  <div className="maint-title">{m.title}</div>
-                  <div className="maint-sub">Unit {m.unit?.number} · {m.unit?.property?.name} · {fmt.dateShort(m.createdAt)}</div>
+                <div className="right">
+                  <div className="small">{shortDate(when)}</div>
+                  <Badge tone={days < 0 ? 'red' : days <= 3 ? 'amber' : c.status === 'POSTPONED' ? 'postponed' : 'pending'}>{days < 0 ? `${-days}d late` : days === 0 ? 'Today' : `in ${days}d`}</Badge>
                 </div>
-                <Badge priority={m.priority} />
               </div>
-            ))
-          }
+            );
+          })}
+        </div>
+
+        <div className="card">
+          <div className="card-head"><div className="card-title">Guests this week</div><Link to="/bookings" className="btn btn-sm">Calendar</Link></div>
+          {d.arrivals.length + d.departures.length === 0 ? <p className="muted small">No arrivals or departures in the next 7 days.</p> : <>
+            {d.arrivals.map(b => (
+              <div key={`a${b.id}`} className="list-item"><div><Badge tone="green">In</Badge> <b>{b.guestName}</b><div className="tiny faint">{unitName(b.unit)} · {L.channel[b.channel]}</div></div><span className="small">{shortDate(b.checkIn)}</span></div>
+            ))}
+            {d.departures.map(b => (
+              <div key={`d${b.id}`} className="list-item"><div><Badge tone="amber">Out</Badge> <b>{b.guestName}</b><div className="tiny faint">{unitName(b.unit)} · cleaning needed</div></div><span className="small">{shortDate(b.checkOut)}</span></div>
+            ))}
+          </>}
+        </div>
+
+        <div className="card">
+          <div className="card-head"><div className="card-title">Open maintenance</div><Link to="/maintenance" className="btn btn-sm">All</Link></div>
+          {d.maintenance.length === 0 ? <p className="muted small">Nothing open.</p> : d.maintenance.map(m => (
+            <div key={m.id} className="list-item">
+              <div className="grow"><div className="bold">{m.title}</div><div className="tiny faint">{unitName(m.unit)}{m.spaceCode ? ` · ${m.spaceCode}` : ''}{m.assignedTo ? ` · ${m.assignedTo}` : ''}</div></div>
+              <Badge value={m.priority} map={L.priority} />
+            </div>
+          ))}
         </div>
       </div>
-    </>
+
+      {d.holiday.units > 0 && (
+        <div className="grid g4">
+          <Stat label="Holiday bookings this month" value={num(d.holiday.bookings)} />
+          <Stat label="Nights booked" value={`${d.holiday.bookedNights} / ${d.holiday.availableNights}`} />
+          <Stat label="Average nightly rate (net)" value={money(d.holiday.adr)} />
+          <Stat label="Holiday net revenue" value={money(d.holiday.netRevenue)} sub="After channel fees, spread by night" />
+        </div>
+      )}
+    </div>
   );
 }

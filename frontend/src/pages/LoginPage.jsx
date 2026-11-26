@@ -1,69 +1,44 @@
 // frontend/src/pages/LoginPage.jsx
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { DEMO_USER, DEMO_TOKEN } from '../utils/demoData';
-
-const CARD = { background:'var(--bg)', border:'1px solid var(--border)', borderRadius:16, padding:36, width:380, maxWidth:'94vw', boxShadow:'0 4px 24px rgba(0,0,0,0.08)' };
+import { Navigate } from 'react-router-dom';
+import { useAuth } from '../lib/auth';
 
 export default function LoginPage() {
-  const { login, loginDemo } = useAuth();
-  const navigate      = useNavigate();
-  const [form, set]   = useState({ email: '', password: '' });
-  const [error, setErr] = useState('');
+  const { user, login } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
+  if (user) return <Navigate to="/dashboard" replace />;
 
-  const handle = async e => {
+  const submit = async e => {
     e.preventDefault();
-    setBusy(true); setErr('');
-    try {
-      await login(form.email, form.password);
-      navigate('/dashboard');
-    } catch (err) {
-      setErr(err.message);
-    } finally { setBusy(false); }
+    setBusy(true); setError(null);
+    try { await login(email, password); } catch (err) { setError(err.message); setBusy(false); }
   };
 
   return (
-    <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'var(--bg-2)' }}>
-      <div style={CARD}>
-        <div style={{ marginBottom: 28 }}>
-          <div style={{ fontSize:20, fontWeight:600, marginBottom:4 }}>PropOS</div>
-          <div style={{ fontSize:13, color:'var(--text-2)' }}>Sign in to your account</div>
+    <div className="login-wrap">
+      <div className="login-side">
+        <div className="brand-name" style={{ fontSize: 22 }}>Sakanly <span>PropOS</span></div>
+        <div>
+          <h1>Every partition, booking and cheque. <em>One place.</em></h1>
+          <p style={{ color: '#aab4c9', marginTop: 14, maxWidth: 420 }}>
+            The operating system for Sakanly Stay Holiday Homes: partitions board, rent collection, holiday bookings, cheques and owner statements.
+          </p>
+          <p className="ar" dir="rtl" style={{ color: 'var(--sand)', marginTop: 18, fontSize: 18 }}>سكنلي — كأنك في بيتك</p>
         </div>
-
-        {error && <div style={{ background:'var(--red-bg)', color:'var(--red)', padding:'8px 12px', borderRadius:8, fontSize:13, marginBottom:16 }}>{error}</div>}
-
-        <form onSubmit={handle}>
-          <div className="form-group">
-            <label className="form-label">Email</label>
-            <input className="form-input" type="email" value={form.email} onChange={e => set(p => ({...p, email: e.target.value}))} required placeholder="you@company.com" />
-          </div>
-          <div className="form-group">
-            <label className="form-label">Password</label>
-            <input className="form-input" type="password" value={form.password} onChange={e => set(p => ({...p, password: e.target.value}))} required placeholder="••••••••" />
-          </div>
-          <button className="btn btn-primary" type="submit" disabled={busy} style={{ width:'100%', padding:'9px 0', fontSize:14 }}>
-            {busy ? 'Signing in…' : 'Sign in'}
-          </button>
+        <div className="small" style={{ color: '#6f7c98' }}>Office 301, Warsan Building, Barsha Heights · Dubai</div>
+      </div>
+      <div className="login-form">
+        <form onSubmit={submit}>
+          <h2 style={{ fontSize: 22, marginBottom: 4 }}>Sign in</h2>
+          <p className="muted small" style={{ marginBottom: 22 }}>For the Sakanly team. Ask an admin for an account.</p>
+          {error && <div className="alert alert-error">{error}</div>}
+          <div className="field"><label htmlFor="email">Email</label><input id="email" className="input" type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} required autoFocus /></div>
+          <div className="field"><label htmlFor="pw">Password</label><input id="pw" className="input" type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} required /></div>
+          <button className="btn btn-primary" style={{ width: '100%', justifyContent: 'center', padding: 10 }} disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
         </form>
-
-        <div style={{ position:'relative', margin:'20px 0 12px', textAlign:'center' }}>
-          <div style={{ borderTop:'1px solid var(--border)', position:'absolute', top:'50%', left:0, right:0 }}></div>
-          <span style={{ position:'relative', background:'var(--bg)', padding:'0 12px', fontSize:12, color:'var(--text-3)' }}>or</span>
-        </div>
-
-        <button
-          className="btn"
-          onClick={() => { loginDemo(); navigate('/dashboard'); }}
-          style={{ width:'100%', padding:'9px 0', fontSize:14, background:'var(--bg-3)', border:'1px solid var(--border)', cursor:'pointer' }}
-        >
-          Try Demo Mode
-        </button>
-
-        <div style={{ marginTop:16, textAlign:'center', fontSize:13, color:'var(--text-2)' }}>
-          No account? <Link to="/register" style={{ color:'var(--blue)' }}>Create one</Link>
-        </div>
       </div>
     </div>
   );

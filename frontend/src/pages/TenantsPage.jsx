@@ -1,121 +1,94 @@
 // frontend/src/pages/TenantsPage.jsx
 import { useState } from 'react';
-import { useFetch } from '../hooks/useFetch';
-import { api, fmt } from '../utils/api';
-import { Badge, Avatar, Modal, EmptyState, Spinner, FormGroup } from '../components/UI';
+import { useApi } from '../lib/hooks';
+import { api, qs } from '../lib/api';
+import { useAuth } from '../lib/auth';
+import { money, date, L } from '../lib/format';
+import { tenantFields } from '../lib/forms';
+import { Spinner, ErrorBox, Empty, FormModal, Badge, Drawer, useToast } from '../components/ui';
 
 export default function TenantsPage() {
-  const { data, loading, refetch } = useFetch('/tenants');
-  const [showAdd, setShowAdd]  = useState(false);
-  const [search,  setSearch]   = useState('');
-  const [form, setForm]        = useState({ name:'', email:'', phone:'', idNumber:'' });
-  const [busy, setBusy]        = useState(false);
+  const { can } = useAuth();
+  const toast = useToast();
+  const [q, setQ] = useState('');
+  const [show, setShow] = useState('current');
+  const { data, loading, error, refetch } = useApi(`/tenants${qs({ q })}`);
+  const [modal, setModal] = useState(null);
+  const [open, setOpen] = useState(null);
 
-  const filtered = (data || []).filter(t =>
-    t.name.toLowerCase().includes(search.toLowerCase()) ||
-    t.email.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const handleAdd = async e => {
-    e.preventDefault();
-    setBusy(true);
-    try {
-      await api.post('/tenants', form);
-      refetch();
-      setShowAdd(false);
-      setForm({ name:'', email:'', phone:'', idNumber:'' });
-    } finally { setBusy(false); }
+  if (error) return <ErrorBox error={error} retry={refetch} />;
+  const rows = (data || []).filter(t => show === 'all' || t.leases.some(l => l.status !== 'ENDED'));
+  const where = t => {
+    const l = t.leases.find(x => x.status !== 'ENDED') || t.leases[0];
+    return l ? `${l.unit.building.name} ${l.unit.number}${l.space ? ` · ${l.space.code}` : ''}` : '—';
   };
-
-  if (loading) return <Spinner />;
-
-  const activeLease = (tenant) => tenant.leases?.[0];
 
   return (
     <>
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:20 }}>
-        <div className="section-title" style={{ margin:0 }}>Tenants <span style={{ fontSize:14, fontWeight:400, color:'var(--text-3)' }}>({(data||[]).length})</span></div>
-        <div style={{ display:'flex', gap:8 }}>
-          <input className="form-input" style={{ width:220 }} placeholder="Search tenants…" value={search} onChange={e => setSearch(e.target.value)} />
-          <button className="btn btn-primary" onClick={() => setShowAdd(true)}>+ Add Tenant</button>
+      <div className="toolbar">
+        <input className="input" style={{ maxWidth: 280 }} placeholder="Search name, phone or email" value={q} onChange={e => setQ(e.target.value)} />
+        <select className="input input-sm" value={show} onChange={e => setShow(e.target.value)}>
+          <option value="current">Living with us now</option><option value="all">Everyone (incl. past)</option>
+        </select>
+        <div className="grow" />
+        {can.write && <button className="btn btn-primary" onClick={() => setModal({})}>+ Tenant</button>}
+      </div>
+      {loading && !data ? <Spinner /> : rows.length === 0 ? (
+        <Empty icon="☺" title={q ? 'No match' : 'No tenants yet'}>Tenants are added when you move someone into a partition on the Partitions board.</Empty>
+      ) : (
+        <div className="card card-flush">
+          <div className="table-wrap">
+            <table className="table">
+              <thead><tr><th>Name</th><th>Phone</th><th>Lives in</th><th className="num">Rent</th><th>Since</th><th>Status</th></tr></thead>
+              <tbody>
+                {rows.map(t => {
+                  const l = t.leases.find(x => x.status !== 'ENDED') || t.leases[0];
+                  return (
+                    <tr key={t.id} className="clickable" onClick={() => setOpen(t)}>
+                      <td className="bold">{t.name}{t.nationality && <div className="tiny faint">{t.nationality}</div>}</td>
+                      <td className="small">{t.phone || '—'}</td>
+                      <td className="small">{where(t)}</td>
+                      <td className="num">{l ? money(l.rent) : '—'}</td>
+                      <td className="small">{l ? date(l.startDate) : '—'}</td>
+                      <td>{l ? <Badge value={l.status} map={L.leaseStatus} /> : <Badge>No tenancy</Badge>}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="card">
-        {filtered.length === 0
-          ? <EmptyState icon="👤" title="No tenants found" message={search ? 'Try a different search.' : 'Add your first tenant.'} />
-          : <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Tenant</th>
-                    <th>Contact</th>
-                    <th>Current Unit</th>
-                    <th>Rent/mo</th>
-                    <th>Lease Ends</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map(t => {
-                    const lease = activeLease(t);
-                    return (
-                      <tr key={t.id}>
-                        <td>
-                          <div style={{ display:'flex', alignItems:'center', gap:9 }}>
-                            <Avatar name={t.name} size={30} />
-                            <div>
-                              <div style={{ fontWeight:500 }}>{t.name}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td>
-                          <div style={{ fontSize:13 }}>{t.email}</div>
-                          {t.phone && <div style={{ fontSize:11, color:'var(--text-3)' }}>{t.phone}</div>}
-                        </td>
-                        <td>
-                          {lease ? (
-                            <div>
-                              <div>Unit {lease.unit?.number}</div>
-                              <div style={{ fontSize:11, color:'var(--text-3)' }}>{lease.unit?.property?.name}</div>
-                            </div>
-                          ) : <span style={{ color:'var(--text-3)' }}>—</span>}
-                        </td>
-                        <td style={{ fontWeight:500 }}>{lease ? fmt.currency(lease.rentAmount) : '—'}</td>
-                        <td style={{ color:'var(--text-2)' }}>{lease ? fmt.date(lease.endDate) : '—'}</td>
-                        <td>
-                          {lease
-                            ? <Badge status={lease.status} />
-                            : <Badge status="EXPIRED" />}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+      {open && (
+        <Drawer title={open.name} subtitle={open.phone} onClose={() => setOpen(null)}
+          actions={can.write && <button className="btn btn-sm" onClick={() => setModal({ tenant: open })}>Edit</button>}>
+          <dl className="kv">
+            {open.phone && <><dt>WhatsApp</dt><dd><a href={`https://wa.me/${open.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer">{open.phone}</a></dd></>}
+            {open.email && <><dt>Email</dt><dd>{open.email}</dd></>}
+            {open.nationality && <><dt>Nationality</dt><dd>{open.nationality}</dd></>}
+            {open.idNumber && <><dt>ID no.</dt><dd>{open.idNumber}</dd></>}
+            {open.notes && <><dt>Notes</dt><dd style={{ whiteSpace: 'pre-wrap' }}>{open.notes}</dd></>}
+          </dl>
+          <div className="section-title">Tenancies</div>
+          {open.leases.length === 0 && <p className="small muted">None.</p>}
+          {open.leases.map(l => (
+            <div key={l.id} className="list-item">
+              <div><div className="bold">{l.unit.building.name} {l.unit.number}{l.space ? ` · ${l.space.code}` : ''}</div>
+                <div className="tiny faint">{date(l.startDate)} → {l.endDate ? date(l.endDate) : 'ongoing'} · deposit {money(l.depositPaid)}</div></div>
+              <div className="right"><div className="num">{money(l.rent)}</div><Badge value={l.status} map={L.leaseStatus} /></div>
             </div>
-        }
-      </div>
+          ))}
+        </Drawer>
+      )}
 
-      {showAdd && (
-        <Modal title="Add Tenant" onClose={() => setShowAdd(false)}
-          footer={<><button className="btn" onClick={() => setShowAdd(false)}>Cancel</button><button className="btn btn-primary" form="add-tenant-form" type="submit" disabled={busy}>{busy ? 'Saving…' : 'Add Tenant'}</button></>}
-        >
-          <form id="add-tenant-form" onSubmit={handleAdd}>
-            <FormGroup label="Full name">
-              <input className="form-input" value={form.name} onChange={e => setForm(p=>({...p,name:e.target.value}))} required placeholder="Sarah Johnson" />
-            </FormGroup>
-            <FormGroup label="Email">
-              <input className="form-input" type="email" value={form.email} onChange={e => setForm(p=>({...p,email:e.target.value}))} required placeholder="sarah@email.com" />
-            </FormGroup>
-            <FormGroup label="Phone">
-              <input className="form-input" value={form.phone} onChange={e => setForm(p=>({...p,phone:e.target.value}))} placeholder="+1 555 0100" />
-            </FormGroup>
-            <FormGroup label="ID / Passport number">
-              <input className="form-input" value={form.idNumber} onChange={e => setForm(p=>({...p,idNumber:e.target.value}))} placeholder="Optional" />
-            </FormGroup>
-          </form>
-        </Modal>
+      {modal && (
+        <FormModal title={modal.tenant ? 'Edit tenant' : 'New tenant'} fields={tenantFields} initial={modal.tenant} onClose={() => setModal(null)}
+          onDelete={modal.tenant && modal.tenant.leases.length === 0 ? async () => { await api.del(`/tenants/${modal.tenant.id}`); toast('Deleted'); setModal(null); setOpen(null); refetch(); } : undefined}
+          onSubmit={async v => {
+            if (modal.tenant) await api.patch(`/tenants/${modal.tenant.id}`, v); else await api.post('/tenants', v);
+            toast('Saved'); setModal(null); setOpen(null); refetch();
+          }} />
       )}
     </>
   );
