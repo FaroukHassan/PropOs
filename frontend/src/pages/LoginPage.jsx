@@ -33,7 +33,7 @@ export default function LoginPage() {
       <div className="login-form">
         <form onSubmit={submit}>
           <h2 style={{ fontSize: 22, marginBottom: 4 }}>Sign in</h2>
-          <p className="muted small" style={{ marginBottom: 22 }}>For the Sakanly team. Ask an admin for an account.</p>
+          <p className="muted small" style={{ marginBottom: 22 }}>{import.meta.env.VITE_DEMO ? 'Demo: any email and password will work.' : 'For the Sakanly team. Ask an admin for an account.'}</p>
           {error && <div className="alert alert-error">{error}</div>}
           <div className="field"><label htmlFor="email">Email</label><input id="email" className="input" type="email" autoComplete="username" value={email} onChange={e => setEmail(e.target.value)} required autoFocus /></div>
           <div className="field"><label htmlFor="pw">Password</label><input id="pw" className="input" type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} required /></div>

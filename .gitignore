@@ -37,3 +37,7 @@ prisma.test.config.js
 *.xls
 *.csv
 data/
+
+# Demo build data (regenerated from sample data)
+frontend/public/demo-data.json
+frontend/demo-dist/

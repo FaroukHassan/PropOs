@@ -76,6 +76,7 @@ function Shell() {
           </div>
           <span className="small faint">{new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span>
         </header>
+        {import.meta.env.VITE_DEMO && <div className="alert alert-info" style={{ margin: 0, borderRadius: 0, textAlign: 'center' }}>Demo with sample data. Click around freely; changes are not saved. Sample month: November 2026.</div>}
         <main className="content">
           <Routes>
             <Route path="/dashboard" element={<DashboardPage />} />

@@ -12,6 +12,12 @@ export function ToastProvider({ children }) {
     setItems(x => [...x, { id, msg, kind }]);
     setTimeout(() => setItems(x => x.filter(i => i.id !== id)), kind === 'error' ? 6000 : 3000);
   }, []);
+  useEffect(() => {
+    if (!import.meta.env.VITE_DEMO) return;
+    const h = e => { if (e.reason?.name === 'Error' || e.reason instanceof Error) { push(e.reason.message, 'error'); e.preventDefault(); } };
+    window.addEventListener('unhandledrejection', h);
+    return () => window.removeEventListener('unhandledrejection', h);
+  }, [push]);
   return (
     <ToastCtx.Provider value={push}>
       {children}

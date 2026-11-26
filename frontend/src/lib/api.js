@@ -10,6 +10,10 @@ let onUnauthorized = () => {};
 export const setUnauthorizedHandler = fn => { onUnauthorized = fn; };
 
 async function request(method, path, body) {
+  if (import.meta.env.VITE_DEMO) {
+    const { demoRequest } = await import('../demo/demo.js');
+    return demoRequest(method, path, body);
+  }
   const token = tokenStore.get();
   let res;
   try {
