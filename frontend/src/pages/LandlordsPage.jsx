@@ -1,5 +1,6 @@
 // frontend/src/pages/LandlordsPage.jsx — landlords & owners, with monthly owner statements
 import { useState } from 'react';
+import { usePeriod, PeriodPicker } from '../lib/period';
 import { useApi, useSticky } from '../lib/hooks';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
@@ -56,18 +57,18 @@ export default function LandlordsPage() {
 }
 
 function Statement({ landlord, onClose }) {
-  const [month, setMonth] = useSticky('stmt_month', monthKey());
-  const { data, loading, error } = useApi(`/reports/owner-statement?landlordId=${landlord.id}&month=${month}`);
+  const period = usePeriod();
+  const { data, loading, error } = useApi(`/reports/owner-statement?landlordId=${landlord.id}&from=${period.from}&to=${period.to}`);
   return (
     <Modal title={`Statement — ${landlord.name}`} onClose={onClose} wide
       footer={<><button className="btn" onClick={() => window.print()}>Print / save PDF</button><button className="btn btn-primary" onClick={onClose}>Close</button></>}>
-      <div className="row-between no-print" style={{ marginBottom: 14 }}><MonthPicker value={month} onChange={setMonth} /></div>
+      <div className="row-between no-print" style={{ marginBottom: 14 }}><PeriodPicker /></div>
       {error && <div className="alert alert-error">{error}</div>}
       {loading || !data ? <Spinner /> : (
         <div id="statement">
           <div className="print-only" style={{ marginBottom: 16 }}>
             <div className="bold" style={{ fontSize: 18 }}>Sakanly Stay Holiday Homes</div>
-            <div className="small">Owner statement · {landlord.name} · {monthLabel(month)}</div>
+            <div className="small">Owner statement · {landlord.name} · {period.label}</div>
           </div>
           {data.units.map(u => (
             <div key={u.unitId} style={{ marginBottom: 18 }}>
@@ -78,7 +79,7 @@ function Statement({ landlord, onClose }) {
                     <tr key={i}><td className="small nowrap">{date(x.date)}</td><td className="small">{x.description}{x.space ? ` · ${x.space}` : ''}</td><td className="small faint">{L.category[x.category]}</td>
                       <td className="num small">{x.type === 'INCOME' ? '' : '−'}{money(x.amount).replace('AED ', '')}</td></tr>
                   ))}
-                  {u.lines.length === 0 && <tr><td className="small muted">No activity this month.</td></tr>}
+                  {u.lines.length === 0 && <tr><td className="small muted">No activity in this period.</td></tr>}
                 </tbody>
                 <tfoot>
                   <tr><td colSpan={3}>Income</td><td className="num">{money(u.income)}</td></tr>
@@ -86,14 +87,14 @@ function Statement({ landlord, onClose }) {
                   {u.arrangement === 'MANAGEMENT' ? <>
                     <tr><td colSpan={3}>Sakanly fee ({u.feePct}%)</td><td className="num">{money(u.fee)}</td></tr>
                     <tr><td colSpan={3}>Owner share</td><td className="num">{money(u.ownerShare)}</td></tr>
-                  </> : <tr><td colSpan={3}>Rent paid to landlord this month</td><td className="num">{money(u.paidToLandlord)}</td></tr>}
+                  </> : <tr><td colSpan={3}>Rent paid to landlord in this period</td><td className="num">{money(u.paidToLandlord)}</td></tr>}
                 </tfoot>
               </table>
             </div>
           ))}
           {data.totals.ownerShare !== 0 && (
             <div className="card" style={{ background: 'var(--sand-bg)', border: 'none' }}>
-              <div className="row-between"><span>Owner share for {monthLabel(month)}</span><b>{money(data.totals.ownerShare)}</b></div>
+              <div className="row-between"><span>Owner share for {period.label}</span><b>{money(data.totals.ownerShare)}</b></div>
               <div className="row-between"><span>Already paid out</span><b>{money(data.totals.paidOut)}</b></div>
               <div className="row-between" style={{ fontSize: 16, marginTop: 6 }}><span className="bold">Balance due to owner</span><b>{money(data.totals.balanceDue)}</b></div>
             </div>

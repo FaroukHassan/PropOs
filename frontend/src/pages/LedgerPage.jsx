@@ -1,6 +1,7 @@
 // frontend/src/pages/LedgerPage.jsx — every dirham in and out (replaces the Transaction Log / BANK sheet)
 import { useState } from 'react';
 import { useScope } from '../lib/scope';
+import { usePeriod, PeriodPicker } from '../lib/period';
 import { useApi, useSticky } from '../lib/hooks';
 import { api, qs } from '../lib/api';
 import { useAuth } from '../lib/auth';
@@ -11,13 +12,13 @@ import { Spinner, ErrorBox, Empty, FormModal, Badge, MonthPicker, Stat, Tabs, us
 export default function LedgerPage() {
   const { can } = useAuth();
   const toast = useToast();
-  const [month, setMonth] = useSticky('ledger_month', monthKey());
+  const period = usePeriod();
   const [type, setType] = useSticky('ledger_type', '');
   const [category, setCategory] = useState('');
   const [q, setQ] = useState('');
   const units = useApi('/units');
   const { params: scope } = useScope();
-  const params = qs({ month, type, category, q, ...scope });
+  const params = qs({ ...period.params, type, category, q, ...scope });
   const { data, loading, error, refetch } = useApi(`/transactions${params}`);
   const summary = useApi(`/transactions/summary${params}`);
   const [modal, setModal] = useState(null);
@@ -29,7 +30,7 @@ export default function LedgerPage() {
   return (
     <>
       <div className="toolbar">
-        <MonthPicker value={month} onChange={setMonth} />
+        <PeriodPicker />
         <Tabs value={type} onChange={t => { setType(t); setCategory(''); }} items={[['', 'All'], ['INCOME', 'Income'], ['EXPENSE', 'Expenses']]} />
         <select className="input input-sm" value={category} onChange={e => setCategory(e.target.value)} aria-label="Category">
           <option value="">All categories</option>
@@ -37,7 +38,7 @@ export default function LedgerPage() {
         </select>
         <input className="input input-sm" placeholder="Search" value={q} onChange={e => setQ(e.target.value)} style={{ width: 150 }} />
         <div className="grow" />
-        <button className="btn" onClick={() => downloadCsv(`ledger-${month}.csv`, rows.map(t => ({
+        <button className="btn" onClick={() => downloadCsv(`ledger-${period.month || `${period.from}_to_${period.to}`}.csv`, rows.map(t => ({
           Date: isoDay(t.date), Type: t.type, Category: L.category[t.category], Description: t.description, Apartment: t.unit ? unitName(t.unit) : '', Partition: t.space?.code || '',
           Tenant: t.lease?.tenant?.name || '', Amount: t.amount, Method: L.method[t.method], Estimated: t.estimated ? 'yes' : '', Notes: t.notes || '',
         })))}>Export</button>

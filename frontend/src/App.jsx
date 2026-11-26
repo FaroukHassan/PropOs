@@ -6,6 +6,7 @@ import { ToastProvider } from './components/ui';
 import { initials, L } from './lib/format';
 import { useMobileTables } from './lib/mobileTables';
 import { ScopeProvider, ScopePicker } from './lib/scope';
+import { PeriodProvider } from './lib/period';
 
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
@@ -73,7 +74,7 @@ function Shell() {
   if (!user) return <Navigate to="/login" replace />;
   const title = TITLES[pathname] || (pathname.startsWith('/units/') ? 'Apartment' : 'PropOS');
   return (
-    <ScopeProvider>
+    <ScopeProvider><PeriodProvider>
     <div className="app">
       <Sidebar open={menu} onNavigate={() => setMenu(false)} />
       {menu && <div className="sidebar-backdrop" onClick={() => setMenu(false)} />}
@@ -116,7 +117,7 @@ function Shell() {
         </nav>
       </div>
     </div>
-    </ScopeProvider>
+    </PeriodProvider></ScopeProvider>
   );
 }
 

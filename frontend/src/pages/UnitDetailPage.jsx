@@ -1,6 +1,7 @@
 // frontend/src/pages/UnitDetailPage.jsx — one apartment: spaces, tenancies, money, cheques
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { usePeriod, PeriodPicker } from '../lib/period';
 import { useApi, useSticky } from '../lib/hooks';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
@@ -17,8 +18,8 @@ export default function UnitDetailPage() {
   const buildings = useApi('/buildings');
   const landlords = useApi('/landlords');
   const tenants = useApi('/tenants');
-  const [month, setMonth] = useSticky('unit_month', monthKey());
-  const tx = useApi(`/transactions?unitId=${id}&month=${month}`);
+  const period = usePeriod();
+  const tx = useApi(`/transactions?unitId=${id}&from=${period.from}&to=${period.to}`);
   const [modal, setModal] = useState(null);
 
   if (error) return <ErrorBox error={error} retry={refetch} />;
@@ -48,7 +49,7 @@ export default function UnitDetailPage() {
         </div>}
       </div>
 
-      <div className="row-between"><div className="section-title" style={{ margin: 0 }}>Money</div><MonthPicker value={month} onChange={setMonth} /></div>
+      <div className="row-between"><div className="section-title" style={{ margin: 0 }}>Money</div><PeriodPicker /></div>
       <div className="grid g4">
         <Stat label="Income" value={money(income)} />
         <Stat label="Expenses" value={money(expenses)} />
@@ -112,11 +113,11 @@ export default function UnitDetailPage() {
 
       <div className="grid g2">
         <div className="card card-flush">
-          <div className="card-head"><div className="card-title">Income & expenses · {month}</div><Link to="/ledger" className="btn btn-sm">Ledger</Link></div>
+          <div className="card-head"><div className="card-title">Income & expenses · {period.label}</div><Link to="/ledger" className="btn btn-sm">Ledger</Link></div>
           <div className="table-wrap">
             <table className="table">
               <tbody>
-                {(tx.data || []).length === 0 && <tr><td className="muted">Nothing recorded this month.</td></tr>}
+                {(tx.data || []).length === 0 && <tr><td className="muted">Nothing recorded in this period.</td></tr>}
                 {(tx.data || []).map(t => (
                   <tr key={t.id}><td className="small nowrap">{date(t.date)}</td><td>{t.description}<div className="tiny faint">{L.category[t.category]}{t.space ? ` · ${t.space.code}` : ''}</div></td>
                     <td className="num" style={{ color: t.type === 'INCOME' ? 'var(--green)' : 'var(--red)' }}>{t.type === 'INCOME' ? '+' : '−'}{money(t.amount).replace('AED ', '')}</td></tr>

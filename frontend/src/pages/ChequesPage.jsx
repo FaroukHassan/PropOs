@@ -2,6 +2,7 @@
 // yellow = paid, green = postponed, white = pending.
 import { useState, useMemo } from 'react';
 import { useScope } from '../lib/scope';
+import { usePeriod, PeriodPicker } from '../lib/period';
 import { useApi, useSticky } from '../lib/hooks';
 import { api, qs } from '../lib/api';
 import { useAuth } from '../lib/auth';
@@ -17,6 +18,8 @@ export default function ChequesPage() {
   const toast = useToast();
   const [direction, setDirection] = useSticky('chq_dir', 'OUT');
   const [show, setShow] = useSticky('chq_show', 'open');
+  const [byDate, setByDate] = useSticky('chq_bydate', false);
+  const period = usePeriod();
   const { scoped } = useScope();
   const { data, loading, error, refetch } = useApi(scoped('/cheques', { direction }));
   const units = useApi('/units');
@@ -25,11 +28,12 @@ export default function ChequesPage() {
   const [modal, setModal] = useState(null);
 
   const rows = useMemo(() => {
-    const all = (data || []).slice().sort((a, b) => new Date(effective(a)) - new Date(effective(b)));
+    const inPeriod = c => { const d = String(effective(c)).slice(0, 10); return d >= period.from && d <= period.to; };
+    const all = (data || []).filter(c => !byDate || inPeriod(c)).sort((a, b) => new Date(effective(a)) - new Date(effective(b)));
     if (show === 'open') return all.filter(c => ['PENDING', 'POSTPONED', 'DEPOSITED', 'BOUNCED'].includes(c.status));
     if (show === 'paid') return all.filter(c => c.status === 'CLEARED').reverse();
     return all;
-  }, [data, show]);
+  }, [data, show, byDate, period.from, period.to]);
 
   if (error) return <ErrorBox error={error} retry={refetch} />;
   const all = data || [];
@@ -48,6 +52,8 @@ export default function ChequesPage() {
       <div className="toolbar">
         <Tabs value={direction} onChange={setDirection} items={[['OUT', 'Issued (to landlords)'], ['IN', 'Received (from tenants)']]} />
         <Tabs value={show} onChange={setShow} items={[['open', 'Open'], ['paid', 'Paid'], ['all', 'All']]} />
+        <Tabs value={byDate ? 'period' : 'any'} onChange={v => setByDate(v === 'period')} items={[['any', 'Any date'], ['period', 'Due in period']]} />
+        {byDate && <PeriodPicker />}
         <div className="grow" />
         <button className="btn" onClick={() => downloadCsv(`cheques-${direction === 'OUT' ? 'issued' : 'received'}.csv`, rows.map(c => ({
           Date: isoDay(c.dueDate), 'Postponed to': isoDay(c.postponedTo), Amount: c.amount, Number: c.number, Bank: c.bank || '', Apartment: c.unit ? unitName(c.unit) : '', Name: c.partyName || '', Status: L.chequeStatus[c.status], Notes: c.notes || '',

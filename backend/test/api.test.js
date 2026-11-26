@@ -322,3 +322,21 @@ test('rent collection over a date range lists each month due in it', async () =>
   assert.ok(r.rows.length >= thisMonth.rows.filter(x => iso(new Date(x.dueDate)) <= to).length);
   assert.equal((await call('GET', `/api/reports/rent-collection?from=${to}&to=${from}`)).status, 422);
 });
+
+test('date periods: quarter and year work across dashboard, ledger and reports', async () => {
+  const y = new Date().getUTCFullYear();
+  const year = `from=${y}-01-01&to=${y}-12-31`;
+  const d = (await call('GET', `/api/dashboard?${year}`)).body;
+  assert.equal(d.trend.length, 12, 'a year shows its 12 months');
+  assert.equal(d.days, 365 + (y % 4 === 0 ? 1 : 0));
+  assert.ok('previous' in d && d.previous.from.startsWith(`${y - 1}-01-01`));
+  const pnlYear = (await call('GET', `/api/reports/pnl?${year}`)).body;
+  const sum = (await call('GET', `/api/transactions/summary?${year}`)).body;
+  assert.equal(Math.round(pnlYear.totalIncome), Math.round(sum.income), 'P&L and ledger agree for the same period');
+  // a day range includes its last day
+  const tx = (await call('GET', '/api/transactions')).body[0];
+  const day = tx.date.slice(0, 10);
+  const one = (await call('GET', `/api/transactions?from=${day}&to=${day}`)).body;
+  assert.ok(one.some(t => t.id === tx.id));
+  assert.equal((await call('GET', `/api/reports/pnl?from=${y}-05-01&to=${y}-04-01`)).status, 422);
+});

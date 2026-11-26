@@ -1,6 +1,7 @@
 // frontend/src/pages/BookingsPage.jsx — holiday-home calendar and bookings
 import { useState, useMemo } from 'react';
 import { useScope } from '../lib/scope';
+import { usePeriod, PeriodPicker } from '../lib/period';
 import { useApi, useSticky } from '../lib/hooks';
 import { api, qs } from '../lib/api';
 import { useAuth } from '../lib/auth';
@@ -13,21 +14,24 @@ const DAY = 86400000;
 export default function BookingsPage() {
   const { can } = useAuth();
   const toast = useToast();
-  const [month, setMonth] = useSticky('book_month', monthKey());
-  const [view, setView] = useSticky('book_view', 'calendar');
-  const from = `${month}-01`;
-  const to = `${shiftMonth(month, 1)}-01`;
+  const period = usePeriod();
+  const [chosenView, setView] = useSticky('book_view', 'calendar');
+  const from = period.from;
+  // the calendar shows up to ~2 months of days; longer periods use the list
+  const longPeriod = period.days > 62;
+  const view = longPeriod ? 'list' : chosenView;
+  const endIso = new Date(new Date(`${period.to}T00:00:00Z`).getTime() + DAY).toISOString().slice(0, 10);
   const units = useApi('/units');
   const { scoped, inScope } = useScope();
-  const { data, loading, error, refetch } = useApi(scoped('/bookings', { from, to }));
+  const { data, loading, error, refetch } = useApi(scoped('/bookings', period.params));
   const [modal, setModal] = useState(null);
 
   const days = useMemo(() => {
-    const start = new Date(`${from}T00:00:00Z`), end = new Date(`${to}T00:00:00Z`);
+    const start = new Date(`${from}T00:00:00Z`), end = new Date(`${endIso}T00:00:00Z`);
     const out = [];
     for (let t = start.getTime(); t < end.getTime(); t += DAY) out.push(new Date(t));
     return out;
-  }, [from, to]);
+  }, [from, endIso]);
 
   if (error) return <ErrorBox error={error} retry={refetch} />;
   if ((loading && !data) || !units.data) return <Spinner />;
@@ -40,7 +44,7 @@ export default function BookingsPage() {
   const calRows = homes.flatMap(rowsFor);
   const bookings = (data || []).filter(b => b.status !== 'CANCELLED');
   const monthStart = new Date(`${from}T00:00:00Z`).getTime();
-  const monthEnd = new Date(`${to}T00:00:00Z`).getTime();
+  const monthEnd = new Date(`${endIso}T00:00:00Z`).getTime();
   const nightsIn = b => Math.max(0, Math.round((Math.min(new Date(b.checkOut).getTime(), monthEnd) - Math.max(new Date(b.checkIn).getTime(), monthStart)) / DAY));
   const booked = bookings.filter(b => b.status !== 'INQUIRY').reduce((s, b) => s + nightsIn(b), 0);
   const avail = calRows.length * days.length;
@@ -54,8 +58,9 @@ export default function BookingsPage() {
   return (
     <>
       <div className="toolbar">
-        <MonthPicker value={month} onChange={setMonth} />
-        <Tabs value={view} onChange={setView} items={[['calendar', 'Calendar'], ['list', 'List']]} />
+        <PeriodPicker />
+        {longPeriod ? <span className="small muted">List view for periods over 2 months</span>
+          : <Tabs value={view} onChange={setView} items={[['calendar', 'Calendar'], ['list', 'List']]} />}
         <div className="grow" />
         {can.write && <button className="btn btn-primary" disabled={!homes.length} onClick={() => setModal({})}>+ Booking</button>}
       </div>
@@ -68,7 +73,7 @@ export default function BookingsPage() {
             <Stat label="Occupancy" value={avail ? `${Math.round((booked / avail) * 100)}%` : '—'} progress={avail ? booked / avail : 0} />
             <Stat label="Nights booked" value={`${booked} / ${avail}`} />
             <Stat label="Average nightly rate (net)" value={booked ? money(net / booked) : '—'} />
-            <Stat accent label="Net revenue this month" value={money(net)} sub="After channel commission" />
+            <Stat accent label="Net revenue" value={money(net)} sub={`${period.label} · after channel commission`} />
           </div>
 
           {view === 'calendar' ? (
@@ -99,7 +104,7 @@ export default function BookingsPage() {
                 <table className="table">
                   <thead><tr><th>Guest</th><th>Home</th><th>Channel</th><th>Check-in</th><th>Check-out</th><th className="num">Nights</th><th className="num">Total</th><th className="num">Net</th><th>Status</th></tr></thead>
                   <tbody>
-                    {(data || []).length === 0 && <tr><td colSpan={9} className="muted">No bookings this month.</td></tr>}
+                    {(data || []).length === 0 && <tr><td colSpan={9} className="muted">No bookings in this period.</td></tr>}
                     {(data || []).map(b => (
                       <tr key={b.id} className="clickable" onClick={() => can.write && setModal({ booking: b })}>
                         <td className="bold">{b.guestName}<div className="tiny faint">{b.guestPhone}</div></td>

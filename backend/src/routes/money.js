@@ -3,7 +3,7 @@ const express = require('express');
 const prisma = require('../db');
 const { crudRouter, findOwned } = require('../lib/crud');
 const { ah, HttpError } = require('../middleware/errorHandler');
-const { monthRange, startOfDay, addDays, monthKey } = require('../lib/dates');
+const { monthRange, startOfDay, addDays, monthKey, periodFrom } = require('../lib/dates');
 const { unitScope } = require('../lib/scope');
 
 const INCOME_CATS = ['RENT', 'DEPOSIT', 'BOOKING', 'LEASING_COMMISSION', 'OTHER_INCOME'];
@@ -16,13 +16,10 @@ function txWhere(req) {
   for (const f of ['type', 'category', 'unitId', 'spaceId', 'leaseId', 'bookingId', 'landlordId', 'method']) {
     if (req.query[f]) where[f] = req.query[f];
   }
-  if (req.query.month) {
-    const { start, end } = monthRange(req.query.month);
+  if (req.query.month || req.query.from || req.query.to) {
+    // ?month=2026-11 or ?from=…&to=… (both days included)
+    const { start, end } = periodFrom(req.query, HttpError);
     where.date = { gte: start, lt: end };
-  } else if (req.query.from || req.query.to) {
-    where.date = {};
-    if (req.query.from) where.date.gte = new Date(req.query.from);
-    if (req.query.to) where.date.lt = new Date(req.query.to);
   }
   if (req.query.q) {
     where.OR = ['description', 'notes'].map(f => ({ [f]: { contains: req.query.q, mode: 'insensitive' } }));

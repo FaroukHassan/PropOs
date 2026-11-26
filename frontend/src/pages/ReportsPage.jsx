@@ -1,27 +1,28 @@
 // frontend/src/pages/ReportsPage.jsx — monthly P&L and profit per apartment
 import { useScope } from '../lib/scope';
+import { usePeriod, PeriodPicker } from '../lib/period';
 import { useApi, useSticky } from '../lib/hooks';
 import { money, pct, L, monthKey, monthLabel, downloadCsv } from '../lib/format';
 import { Spinner, ErrorBox, MonthPicker, Stat, Tabs, Badge } from '../components/ui';
 
 export default function ReportsPage() {
-  const [month, setMonth] = useSticky('rep_month', monthKey());
+  const period = usePeriod();
   const [tab, setTab] = useSticky('rep_tab', 'pnl');
   const { scoped } = useScope();
-  const pnl = useApi(scoped('/reports/pnl', { month }));
-  const units = useApi(scoped('/reports/units', { month }));
+  const pnl = useApi(scoped('/reports/pnl', period.params));
+  const units = useApi(scoped('/reports/units', period.params));
   const err = pnl.error || units.error;
   if (err) return <ErrorBox error={err} retry={() => { pnl.refetch(); units.refetch(); }} />;
 
   return (
     <div className="stack">
       <div className="toolbar" style={{ marginBottom: 0 }}>
-        <MonthPicker value={month} onChange={setMonth} />
+        <PeriodPicker />
         <Tabs value={tab} onChange={setTab} items={[['pnl', 'Profit & loss'], ['units', 'By apartment']]} />
         <div className="grow" />
         <button className="btn" onClick={() => window.print()}>Print / PDF</button>
       </div>
-      <div className="print-only"><b>Sakanly Stay Holiday Homes</b> · {tab === 'pnl' ? 'Profit & loss' : 'Profit by apartment'} · {monthLabel(month)}</div>
+      <div className="print-only"><b>Sakanly Stay Holiday Homes</b> · {tab === 'pnl' ? 'Profit & loss' : 'Profit by apartment'} · {period.label}</div>
 
       {tab === 'pnl' ? (!pnl.data ? <Spinner /> : (
         <>
@@ -45,8 +46,8 @@ export default function ReportsPage() {
           </div>
           <div className="card card-flush">
             <div className="card-head">
-              <div className="card-title">Profit by apartment · {monthLabel(month)}</div>
-              <button className="btn btn-sm no-print" onClick={() => downloadCsv(`apartments-${month}.csv`, units.data.rows.map(r => ({
+              <div className="card-title">Profit by apartment · {period.label}</div>
+              <button className="btn btn-sm no-print" onClick={() => downloadCsv(`apartments-${period.month || `${period.from}_to_${period.to}`}.csv`, units.data.rows.map(r => ({
                 Building: r.building, Apartment: r.unit, Type: L.mode[r.mode], Income: r.income, 'Landlord rent': r.landlordRent, DEWA: r.dewa, Other: r.otherExpenses, Net: r.net,
               })))}>Export</button>
             </div>

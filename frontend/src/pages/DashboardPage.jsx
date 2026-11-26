@@ -4,20 +4,25 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import { useScope } from '../lib/scope';
 import { useApi, useSticky } from '../lib/hooks';
 import { money, pct, shortDate, monthKey, monthLabel, daysUntil, L, unitName, num } from '../lib/format';
-import { Stat, Spinner, ErrorBox, MonthPicker, Badge } from '../components/ui';
+import { Stat, Spinner, ErrorBox, Badge } from '../components/ui';
+import { usePeriod, PeriodPicker } from '../lib/period';
 
 export default function DashboardPage() {
-  const [month, setMonth] = useSticky('dash_month', monthKey());
+  const period = usePeriod();
   const { scoped } = useScope();
-  const { data: d, loading, error, refetch } = useApi(scoped('/dashboard', { month }));
+  const { data: d, loading, error, refetch } = useApi(scoped('/dashboard', period.params));
   if (error) return <ErrorBox error={error} retry={refetch} />;
   if (loading && !d) return <Spinner />;
 
-  const trend = d.trend.map(t => ({ ...t, label: monthLabel(t.month).split(' ')[0].slice(0, 3) }));
+  const years = new Set(d.trend.map(t => t.month.slice(0, 4))).size > 1;
+  const trend = d.trend.map(t => ({ ...t, label: `${monthLabel(t.month).split(' ')[0].slice(0, 3)}${years ? ` ${t.month.slice(2, 4)}` : ''}` }));
+  const change = (now, before) => (before ? (now - before) / Math.abs(before) : null);
+  const netChange = change(d.money.net, d.previous.net);
+  const vsPrev = netChange === null ? '' : ` · ${netChange >= 0 ? '▲' : '▼'} ${pct(Math.abs(netChange))} vs previous`;
   return (
     <div className="stack">
       <div className="row-between wrap">
-        <MonthPicker value={month} onChange={setMonth} />
+        <PeriodPicker />
         <div className="row small muted">
           {d.cheques.bounced > 0 && <Badge tone="red">{d.cheques.bounced} bounced cheque{d.cheques.bounced > 1 ? 's' : ''}</Badge>}
           {d.cheques.postponed > 0 && <Badge tone="postponed">{d.cheques.postponed} postponed</Badge>}
@@ -25,7 +30,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid g4">
-        <Stat accent label="Net this month" value={money(d.money.net)} sub={`${money(d.money.income)} in · ${money(d.money.expenses)} out`} />
+        <Stat accent label={`Net profit · ${period.label}`} value={money(d.money.net)} sub={`${money(d.money.income)} in · ${money(d.money.expenses)} out${vsPrev}`} />
         <Stat label="Rent collected" value={pct(d.rent.rate)} sub={`${money(d.rent.collected)} of ${money(d.rent.due)}`} progress={d.rent.rate} />
         <Stat label="Partitions occupied" value={`${d.partitions.occupied} / ${d.partitions.total}`}
           sub={`${d.partitions.available} available · ${d.partitions.notReady} not ready`} progress={d.partitions.occupancy} />
@@ -35,7 +40,7 @@ export default function DashboardPage() {
 
       <div className="grid g-2-1">
         <div className="card">
-          <div className="card-head"><div className="card-title">Last 6 months</div><Link to="/reports" className="btn btn-sm">Reports</Link></div>
+          <div className="card-head"><div className="card-title">{d.trend.length === 6 && period.days < 70 ? 'Last 6 months' : `Month by month · ${period.label}`}</div><Link to="/reports" className="btn btn-sm">Reports</Link></div>
           <div style={{ height: 240 }}>
             <ResponsiveContainer>
               <BarChart data={trend} margin={{ left: 0, right: 8, top: 4 }}>
@@ -53,10 +58,10 @@ export default function DashboardPage() {
 
         <div className="card">
           <div className="card-head"><div className="card-title">Rent still to collect</div><Link to="/rent" className="btn btn-sm">All</Link></div>
-          {d.rent.unpaid.length === 0 ? <p className="muted small">Everyone has paid for {monthLabel(month)}. 🎉</p> :
+          {d.rent.unpaid.length === 0 ? <p className="muted small">Everyone has paid for {period.label}. 🎉</p> :
             d.rent.unpaid.map(r => (
-              <div key={r.leaseId} className="list-item">
-                <div className="grow"><div className="bold">{r.tenant}</div><div className="tiny faint">{r.building} {r.unit}{r.space ? ` · ${r.space}` : ''}</div></div>
+              <div key={`${r.leaseId}-${r.month}`} className="list-item">
+                <div className="grow"><div className="bold">{r.tenant}</div><div className="tiny faint">{r.building} {r.unit}{r.space ? ` · ${r.space}` : ''}{period.month ? '' : ` · ${monthLabel(r.month)}`}</div></div>
                 <div className="right"><div className="num bold">{money(r.balance)}</div><Badge value={r.status} map={L.rentStatus} /></div>
               </div>
             ))}
@@ -110,7 +115,7 @@ export default function DashboardPage() {
 
       {d.holiday.units > 0 && (
         <div className="grid g4">
-          <Stat label="Holiday bookings this month" value={num(d.holiday.bookings)} />
+          <Stat label="Holiday bookings" value={num(d.holiday.bookings)} sub={period.label} />
           <Stat label="Nights booked" value={`${d.holiday.bookedNights} / ${d.holiday.availableNights}`} />
           <Stat label="Average nightly rate (net)" value={money(d.holiday.adr)} />
           <Stat label="Holiday net revenue" value={money(d.holiday.netRevenue)} sub="After channel fees, spread by night" />

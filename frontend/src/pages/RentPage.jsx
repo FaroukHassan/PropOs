@@ -1,6 +1,7 @@
 // frontend/src/pages/RentPage.jsx — who has paid this month (replaces "Rent by Partition")
 import { useState, useMemo } from 'react';
 import { useScope } from '../lib/scope';
+import { usePeriod, PeriodPicker } from '../lib/period';
 import { useApi, useSticky } from '../lib/hooks';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
@@ -11,14 +12,11 @@ export default function RentPage() {
   const { can } = useAuth();
   const toast = useToast();
   const { scoped, short } = useScope();
-  const [period, setPeriod] = useSticky('rent_period', 'month');
-  const [month, setMonth] = useSticky('rent_month', monthKey());
-  const [from, setFrom] = useSticky('rent_from', `${shiftMonth(monthKey(), -2)}-01`);
-  const [to, setTo] = useSticky('rent_to', today());
+  const period = usePeriod();
   const [show, setShow] = useSticky('rent_show', 'unpaid');
   const [q, setQ] = useState('');
-  const range = period === 'range';
-  const { data, loading, error, refetch } = useApi(scoped('/reports/rent-collection', range ? { from, to } : { month }));
+  const range = !period.month; // more than one month → show which month each line is for
+  const { data, loading, error, refetch } = useApi(scoped('/reports/rent-collection', period.params));
   const [pay, setPay] = useState(null);
 
   const all = data?.rows || [];
@@ -35,8 +33,8 @@ export default function RentPage() {
   for (const r of rows) (groups[`${r.building} · Flat ${r.unit}`] ||= []).push(r);
   const paidCount = all.filter(r => r.status === 'PAID').length;
   const overdue = all.filter(r => r.status === 'OVERDUE');
-  const periodText = range ? `${date(from)} – ${date(to)}` : monthLabel(month);
-  const fileTag = `${range ? `${from}_to_${to}` : month}${short ? `-${short.replace(/\s+/g, '-')}` : ''}`;
+  const periodText = period.label;
+  const fileTag = `${period.month || `${period.from}_to_${period.to}`}${short ? `-${short.replace(/\s+/g, '-')}` : ''}`;
 
   const reminder = r => {
     const m = monthLabel(r.month);
@@ -47,14 +45,7 @@ export default function RentPage() {
   return (
     <>
       <div className="toolbar">
-        <Tabs value={period} onChange={setPeriod} items={[['month', 'Month'], ['range', 'Date range']]} />
-        {range ? (
-          <div className="row date-range">
-            <input className="input input-sm" type="date" value={from} max={to} onChange={e => e.target.value && setFrom(e.target.value)} aria-label="From" />
-            <span className="small muted">to</span>
-            <input className="input input-sm" type="date" value={to} min={from} onChange={e => e.target.value && setTo(e.target.value)} aria-label="To" />
-          </div>
-        ) : <MonthPicker value={month} onChange={setMonth} />}
+        <PeriodPicker />
       </div>
       <div className="toolbar">
         <Tabs value={show} onChange={setShow} items={[['unpaid', 'Not fully paid'], ['OVERDUE', `Overdue${overdue.length ? ` (${overdue.length})` : ''}`], ['PAID', 'Paid'], ['all', 'Everyone']]} />
@@ -65,7 +56,7 @@ export default function RentPage() {
         })))}>Export</button>
       </div>
       <div className="grid g4" style={{ marginBottom: 16 }}>
-        <Stat label="Rent due" value={money(data.totals.due)} sub={range ? `${all.length} instalments · ${periodText}` : `${all.length} monthly tenancies`} />
+        <Stat label="Rent due" value={money(data.totals.due)} sub={range ? `${all.length} instalments · ${periodText}` : `${all.length} monthly tenancies · ${periodText}`} />
         <Stat label="Collected" value={money(data.totals.collected)} progress={data.totals.due ? data.totals.collected / data.totals.due : 0} />
         <Stat accent label="Outstanding" value={money(data.totals.outstanding)} />
         <Stat label="Fully paid" value={`${paidCount} / ${all.length}`} sub={overdue.length ? `${overdue.length} overdue` : undefined} />

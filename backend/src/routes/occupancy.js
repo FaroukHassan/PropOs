@@ -3,7 +3,7 @@ const express = require('express');
 const prisma = require('../db');
 const { crudRouter, findOwned, coerce } = require('../lib/crud');
 const { ah, HttpError } = require('../middleware/errorHandler');
-const { nights, startOfDay } = require('../lib/dates');
+const { nights, startOfDay, periodFrom } = require('../lib/dates');
 const { unitScope, isScoped } = require('../lib/scope');
 
 // ─── Tenants ─────────────────────────────────────────────────────────────────
@@ -119,9 +119,10 @@ bookings.get('/', ah(async (req, res) => {
   Object.assign(where, unitScope(req.query));
   for (const f of ['unitId', 'spaceId', 'status', 'channel']) if (req.query[f]) where[f] = req.query[f];
   if (req.query.from || req.query.to) {
-    // bookings that overlap the window
-    if (req.query.to) where.checkIn = { lt: new Date(req.query.to) };
-    if (req.query.from) where.checkOut = { gt: new Date(req.query.from) };
+    // bookings that overlap the window (both days included)
+    const { start, end } = periodFrom(req.query, HttpError);
+    if (req.query.to) where.checkIn = { lt: end };
+    if (req.query.from) where.checkOut = { gt: start };
   }
   const rows = await prisma.booking.findMany({
     where, include: { unit: { include: { building: true } }, space: true }, orderBy: { checkIn: 'asc' },

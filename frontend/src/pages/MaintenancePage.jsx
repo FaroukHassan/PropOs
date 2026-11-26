@@ -1,6 +1,7 @@
 // frontend/src/pages/MaintenancePage.jsx
 import { useState } from 'react';
 import { useScope } from '../lib/scope';
+import { usePeriod, PeriodPicker } from '../lib/period';
 import { useApi, useSticky } from '../lib/hooks';
 import { api, qs } from '../lib/api';
 import { useAuth } from '../lib/auth';
@@ -12,12 +13,15 @@ export default function MaintenancePage() {
   const { can } = useAuth();
   const toast = useToast();
   const [status, setStatus] = useSticky('maint_status', 'OPEN_ALL');
+  const [byDate, setByDate] = useSticky('maint_bydate', false);
+  const period = usePeriod();
   const { scoped } = useScope();
   const { data, loading, error, refetch } = useApi(scoped('/maintenance', { status: status === 'OPEN_ALL' ? '' : status }));
   const units = useApi('/units');
   const [modal, setModal] = useState(null);
   if (error) return <ErrorBox error={error} retry={refetch} />;
-  const rows = (data || []).filter(m => status !== 'OPEN_ALL' || m.status !== 'RESOLVED');
+  const inPeriod = m => { const d = String(m.createdAt).slice(0, 10); return d >= period.from && d <= period.to; };
+  const rows = (data || []).filter(m => (status !== 'OPEN_ALL' || m.status !== 'RESOLVED') && (!byDate || inPeriod(m)));
 
   const setStat = async (m, s) => { await api.patch(`/maintenance/${m.id}`, { status: s }); toast(`Marked ${L.maintStatus[s].toLowerCase()}`); refetch(); };
 
@@ -25,6 +29,8 @@ export default function MaintenancePage() {
     <>
       <div className="toolbar">
         <Tabs value={status} onChange={setStatus} items={[['OPEN_ALL', 'Not resolved'], ['OPEN', 'Open'], ['IN_PROGRESS', 'In progress'], ['RESOLVED', 'Resolved']]} />
+        <Tabs value={byDate ? 'period' : 'any'} onChange={v => setByDate(v === 'period')} items={[['any', 'Any date'], ['period', 'Reported in period']]} />
+        {byDate && <PeriodPicker />}
         <div className="grow" />
         {can.write && <button className="btn btn-primary" onClick={() => setModal({})}>+ Request</button>}
       </div>
