@@ -42,6 +42,7 @@ api.use('/transactions', money.transactions);
 api.use('/cheques', money.cheques);
 api.use('/maintenance', money.maintenance);
 api.use('/import', require('./routes/import'));
+api.use('/leasing', require('./routes/leasing'));
 api.use('/', require('./routes/reports'));
 app.use('/api', api);
 

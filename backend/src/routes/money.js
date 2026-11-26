@@ -6,14 +6,14 @@ const { ah, HttpError } = require('../middleware/errorHandler');
 const { monthRange, startOfDay, addDays, monthKey, periodFrom } = require('../lib/dates');
 const { unitScope } = require('../lib/scope');
 
-const INCOME_CATS = ['RENT', 'DEPOSIT', 'BOOKING', 'LEASING_COMMISSION', 'OTHER_INCOME'];
+const INCOME_CATS = ['RENT', 'DEPOSIT', 'BOOKING', 'LEASING_COMMISSION', 'OTHER_INCOME', 'DEAL_FUNDS_IN'];
 
 // ─── Transactions ────────────────────────────────────────────────────────────
 const transactions = express.Router();
 
 function txWhere(req) {
   const where = { orgId: req.user.orgId, ...unitScope(req.query) };
-  for (const f of ['type', 'category', 'unitId', 'spaceId', 'leaseId', 'bookingId', 'landlordId', 'method']) {
+  for (const f of ['type', 'category', 'unitId', 'spaceId', 'leaseId', 'bookingId', 'landlordId', 'method', 'dealId']) {
     if (req.query[f]) where[f] = req.query[f];
   }
   if (req.query.month || req.query.from || req.query.to) {
@@ -30,7 +30,7 @@ function txWhere(req) {
 transactions.get('/', ah(async (req, res) => {
   res.json(await prisma.transaction.findMany({
     where: txWhere(req),
-    include: { unit: { include: { building: true } }, space: true, lease: { include: { tenant: true } }, landlord: true },
+    include: { unit: { include: { building: true } }, space: true, lease: { include: { tenant: true } }, landlord: true, deal: { select: { id: true, number: true, clientName: true } } },
     orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
     take: Math.min(Number(req.query.limit) || 500, 2000),
   }));
@@ -55,10 +55,10 @@ crudRouter({
     date: { type: 'date', required: true }, type: { type: 'enum', required: true },
     category: { type: 'enum', required: true }, description: { type: 'string', required: true },
     amount: { type: 'number', required: true }, method: 'enum',
-    unitId: 'id', spaceId: 'id', leaseId: 'id', bookingId: 'id', landlordId: 'id',
+    unitId: 'id', spaceId: 'id', leaseId: 'id', bookingId: 'id', landlordId: 'id', dealId: 'id',
     periodMonth: 'string', estimated: 'bool', notes: 'string',
   },
-  include: { unit: { include: { building: true } }, space: true, lease: { include: { tenant: true } }, landlord: true },
+  include: { unit: { include: { building: true } }, space: true, lease: { include: { tenant: true } }, landlord: true, deal: { select: { id: true, number: true, clientName: true } } },
   beforeSave: async (data, req, existing) => {
     const type = data.type || existing?.type;
     const category = data.category || existing?.category;

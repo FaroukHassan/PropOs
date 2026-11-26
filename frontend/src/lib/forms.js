@@ -152,3 +152,35 @@ export const maintenanceFields = ({ units }) => [
   { name: 'cost', label: t("Cost (AED)"), type: 'number', hint: t("Also add it to the ledger as a Maintenance expense") },
   { name: 'description', label: t("Details"), type: 'textarea' },
 ];
+
+// Leasing deal (brokerage: we find the tenant, the landlord pays/agrees our fee)
+export const DEAL_SOURCES = ['Bayut', 'Property Finder', 'Dubizzle', 'Instagram', 'Facebook', 'TikTok', 'WhatsApp', 'Website', 'Referral', 'Walk-in', 'Other'];
+export const dealFields = ({ agents = [] } = {}) => [
+  { name: 'contractType', label: t('Contract'), type: 'select', required: true, options: options(L.contractType), default: 'YEARLY' },
+  { name: 'status', label: t('Stage'), type: 'select', required: true, options: options(L.dealStatus), default: 'LEAD' },
+  { name: 'clientName', label: t('Client name'), required: true },
+  { name: 'clientPhone', label: t('Client phone'), placeholder: '+971 5x xxx xxxx' },
+  { name: 'clientEmail', label: t('Client email'), type: 'email' },
+  { name: 'clientNationality', label: t('Nationality') },
+  { name: 'source', label: t('Lead source'), type: 'select', options: DEAL_SOURCES.map(s => ({ value: s, label: t(s) })) },
+  { name: 'agent', label: t('Agent'), placeholder: agents[0] || t('Ahmed Fawzy'), hint: agents.length ? t('Used before: {0}', [agents.join(', ')]) : undefined },
+  { name: 'property', label: t('Building / project'), placeholder: t('Marina Gate, Azizi Riviera…') },
+  { name: 'unitNo', label: t('Unit no.') },
+  { name: 'unitType', label: t('Unit type'), placeholder: t('Studio, 1BR, 2BR…') },
+  { name: 'area', label: t('Area'), placeholder: t('Dubai Marina, JVC…') },
+  { name: 'landlordName', label: t('Landlord / agency / hotel') },
+  { name: 'landlordPhone', label: t('Landlord phone') },
+  { name: 'moveIn', label: t('Move-in date'), type: 'date' },
+  { name: 'months', label: t('Contract length (months)'), type: 'number', default: '', hint: v => (v.contractType === 'YEARLY' ? t('Usually 12') : t('1 to 11 months')) },
+  { name: 'rent', label: t('Rent (AED)'), type: 'number', hint: v => (v.contractType === 'YEARLY' ? t('Annual rent') : t('Monthly rent')) },
+  { name: 'cheques', label: t('No. of cheques'), type: 'number', show: v => v.contractType === 'YEARLY' },
+  { name: 'deposit', label: t('Security deposit (AED)'), type: 'number' },
+  { name: 'fee', label: t('Sakanly fee / commission (AED)'), type: 'number', hint: t('What Sakanly earns from this deal') },
+  { name: 'agentCommission', label: t('Agent commission (AED)'), type: 'number' },
+  { name: 'brokerName', label: t('Outside broker') },
+  { name: 'brokerCommission', label: t('Broker commission (AED)'), type: 'number' },
+  { name: 'viewingAt', label: t('Viewing date'), type: 'date' },
+  { name: 'followUpAt', label: t('Next follow-up'), type: 'date' },
+  { name: 'lostReason', label: t('Why it was cancelled'), show: v => v.status === 'CANCELLED', full: true },
+  { name: 'notes', label: t('Notes'), type: 'textarea' },
+];

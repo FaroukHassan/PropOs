@@ -57,6 +57,7 @@ export const L = {
     CLEANING: 'Cleaning', SALARIES: 'Salaries', COMMISSION: 'Commission', DEPOSIT_REFUND: 'Deposit refund',
     LICENSE: 'Licence & fees', ADMIN: 'Admin', SECURITY: 'Security', FURNITURE: 'Furniture & setup',
     OWNER_PAYOUT: 'Owner payout', OTHER_EXPENSE: 'Other expense',
+    DEAL_FUNDS_IN: 'Client money (for landlord)', DEAL_FUNDS_OUT: 'Client money paid to landlord',
   },
   method: { CASH: 'Cash', BANK: 'Bank transfer', CARD: 'Card', CHEQUE: 'Cheque', ONLINE: 'Online / channel' },
   chequeDir: { IN: 'Received (from tenant)', OUT: 'Issued (to landlord)' },
@@ -66,11 +67,14 @@ export const L = {
   maintCategory: { AC: 'AC', PLUMBING: 'Plumbing', ELECTRICAL: 'Electrical', APPLIANCE: 'Appliance', CLEANING: 'Cleaning', PEST: 'Pest control', GENERAL: 'General' },
   role: { ADMIN: 'Admin', MANAGER: 'Manager', VIEWER: 'Read-only' },
   rentStatus: { PAID: 'Paid', PARTIAL: 'Part paid', DUE: 'Due', OVERDUE: 'Overdue' },
+  dealStatus: { LEAD: 'New lead', VIEWING: 'Viewing', RESERVED: 'Reserved', SIGNED: 'Signed', CANCELLED: 'Cancelled' },
+  contractType: { SHORT_TERM: 'Short term (1–11 months)', YEARLY: 'Yearly' },
+  dealPay: { fee: 'Agency fee received', client_in: 'Rent / deposit received for landlord', client_out: 'Paid to landlord / hotel', commission: 'Commission paid (agent / broker)' },
 };
 // Show every label in the chosen language
 for (const group of Object.values(L)) for (const k of Object.keys(group)) group[k] = t(group[k]);
 
-export const INCOME_CATS = ['RENT', 'DEPOSIT', 'BOOKING', 'LEASING_COMMISSION', 'OTHER_INCOME'];
+export const INCOME_CATS = ['RENT', 'DEPOSIT', 'BOOKING', 'LEASING_COMMISSION', 'OTHER_INCOME', 'DEAL_FUNDS_IN'];
 export const EXPENSE_CATS = Object.keys(L.category).filter(c => !INCOME_CATS.includes(c));
 
 export const TONE = {
@@ -82,6 +86,8 @@ export const TONE = {
   OPEN: 'amber', IN_PROGRESS: 'blue', RESOLVED: 'green',
   LOW: '', NORMAL: 'blue', HIGH: 'amber', URGENT: 'red',
   INCOME: 'green', EXPENSE: 'red',
+  LEAD: 'blue', VIEWING: 'violet', SIGNED: 'green',
+  SHORT_TERM: 'sand', YEARLY: 'navy',
 };
 
 export const options = map => Object.entries(map).map(([value, label]) => ({ value, label }));

@@ -149,14 +149,15 @@ export const ErrorBox = ({ error, retry }) => (
 export function Empty({ icon = '📭', title, children, action }) {
   return <div className="empty"><div className="icon">{icon}</div><h3>{title}</h3>{children && <p className="small">{children}</p>}{action && <div style={{ marginTop: 14 }}>{action}</div>}</div>;
 }
-export function Stat({ label, value, sub, progress, accent }) {
+export function Stat({ label, value, sub, progress, accent, onClick, active }) {
+  const Tag = onClick ? 'button' : 'div';
   return (
-    <div className={`stat ${accent ? 'accent' : ''}`}>
+    <Tag className={`stat ${accent ? 'accent' : ''} ${onClick ? 'stat-click' : ''} ${active ? 'stat-on' : ''}`} onClick={onClick} {...(onClick ? { type: 'button', 'aria-pressed': !!active } : {})}>
       <div className="stat-label">{label}</div>
       <div className="stat-value">{value}</div>
       {sub && <div className="stat-sub">{sub}</div>}
       {progress !== undefined && <div className="bar"><div style={{ width: `${Math.max(0, Math.min(100, progress * 100))}%` }} /></div>}
-    </div>
+    </Tag>
   );
 }
 export function MonthPicker({ value, onChange }) {

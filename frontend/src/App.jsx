@@ -25,17 +25,19 @@ import ReportsPage from './pages/ReportsPage';
 import MaintenancePage from './pages/MaintenancePage';
 import ImportPage from './pages/ImportPage';
 import SettingsPage from './pages/SettingsPage';
+import LeasingPage from './pages/LeasingPage';
 
 const NAV = [
   ['Overview', [['/dashboard', '◧', 'Dashboard']]],
   ['Properties', [['/partitions', '▦', 'Partitions board'], ['/units', '⌂', 'Apartments'], ['/bookings', '☾', 'Holiday bookings']]],
+  ['Leasing', [['/leasing', '◆', 'Leasing deals']]],
   ['People', [['/tenants', '☺', 'Tenants'], ['/landlords', '⚿', 'Landlords & owners']]],
   ['Money', [['/rent', '✓', 'Rent collection'], ['/ledger', '≡', 'Income & expenses'], ['/cheques', '✎', 'Cheques'], ['/reports', '◔', 'Reports']]],
   ['Operations', [['/maintenance', '⚒', 'Maintenance'], ['/import', '⇪', 'Import from sheets'], ['/settings', '⚙', 'Settings']]],
 ];
 const TITLES = Object.fromEntries(NAV.flatMap(([, items]) => items.map(([to, , label]) => [to, t(label)])));
 // Screens the apartment filter doesn't apply to
-const NO_SCOPE = ['/landlords', '/import', '/settings'];
+const NO_SCOPE = ['/landlords', '/import', '/settings', '/leasing'];
 // Phone bottom bar: the four screens the team opens most; everything else is under "More".
 const TABBAR = [['/dashboard', '◧', 'Home'], ['/partitions', '▦', 'Partitions'], ['/rent', '✓', 'Rent'], ['/cheques', '✎', 'Cheques']];
 
@@ -105,6 +107,7 @@ function Shell() {
             <Route path="/units" element={<UnitsPage />} />
             <Route path="/units/:id" element={<UnitDetailPage />} />
             <Route path="/bookings" element={<BookingsPage />} />
+            <Route path="/leasing" element={<LeasingPage />} />
             <Route path="/tenants" element={<TenantsPage />} />
             <Route path="/landlords" element={<LandlordsPage />} />
             <Route path="/rent" element={<RentPage />} />

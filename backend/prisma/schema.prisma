@@ -33,6 +33,7 @@ model Org {
   transactions Transaction[]
   cheques     Cheque[]
   maintenance MaintenanceRequest[]
+  deals       LeasingDeal[]
   createdAt   DateTime      @default(now())
 }
 
@@ -222,6 +223,8 @@ model Transaction {
   lease       Lease?        @relation(fields: [leaseId], references: [id])
   bookingId   String?
   booking     Booking?      @relation(fields: [bookingId], references: [id])
+  dealId      String?
+  deal        LeasingDeal?  @relation(fields: [dealId], references: [id])
   landlordId  String?
   landlord    Landlord?     @relation(fields: [landlordId], references: [id])
   chequeId    String?       @unique
@@ -370,6 +373,8 @@ enum TxCategory {
   FURNITURE
   OWNER_PAYOUT
   OTHER_EXPENSE
+  DEAL_FUNDS_IN   // leasing: rent/deposit collected from a client on behalf of the landlord
+  DEAL_FUNDS_OUT  // leasing: that money passed on to the landlord / hotel
 }
 
 enum PayMethod {
@@ -416,4 +421,67 @@ enum MaintenanceCategory {
   CLEANING
   PEST
   GENERAL
+}
+
+// ─── Leasing department (brokerage deals) ──────────────────────────────────────
+// Sakanly finds tenants for other people's properties and earns an agency fee.
+// A deal moves LEAD → VIEWING → RESERVED → SIGNED (or CANCELLED). Money for a deal
+// is in the ledger with dealId: the fee (LEASING_COMMISSION), client money held for
+// the landlord (DEAL_FUNDS_IN / DEAL_FUNDS_OUT) and commissions paid (COMMISSION).
+model LeasingDeal {
+  id             String        @id @default(uuid())
+  orgId          String
+  org            Org           @relation(fields: [orgId], references: [id])
+  number         Int           // Deal #12, per company
+  status         DealStatus    @default(LEAD)
+  contractType   ContractType  @default(YEARLY)
+  // client (the tenant we found)
+  clientName     String
+  clientPhone    String?
+  clientEmail    String?
+  clientNationality String?
+  source         String?       // Bayut, Property Finder, Instagram, referral…
+  // property
+  property       String?       // building / project name
+  unitNo         String?
+  area           String?
+  unitType       String?       // studio, 1BR, 2BR…
+  landlordName   String?       // owner, agency or hotel
+  landlordPhone  String?
+  // terms
+  moveIn         DateTime?
+  months         Int?          // contract length
+  rent           Float?        // monthly rent (short term) or annual rent (yearly)
+  cheques        Int?          // number of cheques (yearly)
+  deposit        Float?
+  fee            Float?        // Sakanly's agency fee / commission due from the deal
+  agent          String?       // who handled it
+  agentCommission  Float?      // owed to our agent
+  brokerName     String?       // outside broker, if shared
+  brokerCommission Float?
+  viewingAt      DateTime?
+  followUpAt     DateTime?
+  signedAt       DateTime?
+  closedAt       DateTime?     // signed or cancelled
+  lostReason     String?
+  notes          String?
+  transactions   Transaction[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@unique([orgId, number])
+  @@index([orgId, status])
+}
+
+enum DealStatus {
+  LEAD
+  VIEWING
+  RESERVED
+  SIGNED
+  CANCELLED
+}
+
+enum ContractType {
+  SHORT_TERM // monthly, 1–11 months
+  YEARLY
 }

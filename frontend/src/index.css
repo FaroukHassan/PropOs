@@ -433,3 +433,36 @@ table.table { width: 100%; border-collapse: collapse; font-size: 13px; }
 [dir="rtl"] .brand-tag { letter-spacing: 0; font-size: 13px; }
 [dir="rtl"] .brand-lockup .brand-tag { font-size: 16px; }
 @media (max-width: 760px) { .brand-logo.lg { height: 32px; } }
+
+/* ─── Leasing pipeline ───────────────────────────────────────────────────── */
+.deal-board { display: grid; grid-template-columns: repeat(5, minmax(220px, 1fr)); gap: 12px; overflow-x: auto; padding-bottom: 6px; align-items: start; }
+.deal-col { background: var(--bg-3); border-radius: var(--radius-lg); padding: 10px; min-height: 120px; }
+.deal-col.st-SIGNED { background: var(--green-bg); }
+.deal-col.st-CANCELLED { background: #f3f1ec; opacity: .85; }
+.deal-col-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; gap: 6px; }
+.deal-empty { padding: 10px 4px; }
+.deal-card { display: block; width: 100%; text-align: start; font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; margin-bottom: 8px; cursor: pointer; box-shadow: var(--shadow); transition: transform .08s, box-shadow .12s; }
+.deal-card:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(16,30,55,.1); }
+.deal-client { margin-top: 4px; font-size: 14px; }
+.deal-late { color: var(--red); font-weight: 600; }
+.deal-steps { display: flex; gap: 4px; margin-bottom: 14px; }
+.deal-step { flex: 1; display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; color: var(--text-3); background: var(--bg-2); border-radius: 6px; padding: 6px 8px; }
+.deal-step span { width: 18px; height: 18px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: var(--bg-3); font-size: 10px; flex-shrink: 0; }
+.deal-step.done { color: var(--green); background: var(--green-bg); }
+.deal-step.done span { background: var(--green); color: #fff; }
+.deal-step.now { color: #fff; background: var(--navy); }
+.deal-step.now span { background: var(--sand); color: var(--navy); }
+@media (max-width: 760px) {
+  .deal-board { grid-template-columns: repeat(5, 82vw); scroll-snap-type: x mandatory; margin: 0 -12px; padding: 0 12px 6px; }
+  .deal-col { scroll-snap-align: start; }
+  .deal-steps { flex-wrap: wrap; }
+  .deal-step { flex: 1 1 45%; }
+}
+
+/* clickable summary boxes (e.g. cheques due in 30 days) */
+button.stat { font: inherit; text-align: start; color: inherit; width: 100%; }
+.stat-click { cursor: pointer; transition: box-shadow .12s, transform .08s, border-color .12s; }
+.stat-click:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(16,30,55,.1); }
+.stat-on { border-color: var(--sand); box-shadow: 0 0 0 2px var(--sand); }
+.stat.accent.stat-on { box-shadow: 0 0 0 3px var(--sand); }
+.filter-chip { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--sand-bg); border: 1px solid var(--sand-2); border-radius: var(--radius); padding: 8px 12px; margin-bottom: 12px; font-size: 13px; }

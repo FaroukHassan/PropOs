@@ -20,6 +20,7 @@ export default function ChequesPage() {
   const [direction, setDirection] = useSticky('chq_dir', 'OUT');
   const [show, setShow] = useSticky('chq_show', 'open');
   const [byDate, setByDate] = useSticky('chq_bydate', false);
+  const [focus, setFocus] = useState(''); // a summary box clicked: in30 | open | POSTPONED | BOUNCED
   const period = usePeriod();
   const { scoped } = useScope();
   const { data, loading, error, refetch } = useApi(scoped('/cheques', { direction }));
@@ -31,10 +32,13 @@ export default function ChequesPage() {
   const rows = useMemo(() => {
     const inPeriod = c => { const d = String(effective(c)).slice(0, 10); return d >= period.from && d <= period.to; };
     const all = (data || []).filter(c => !byDate || inPeriod(c)).sort((a, b) => new Date(effective(a)) - new Date(effective(b)));
+    if (focus === 'in30') return all.filter(c => ['PENDING', 'POSTPONED', 'DEPOSITED'].includes(c.status) && daysUntil(effective(c)) <= 30);
+    if (focus === 'open') return all.filter(c => ['PENDING', 'POSTPONED', 'DEPOSITED'].includes(c.status));
+    if (focus) return all.filter(c => c.status === focus);
     if (show === 'open') return all.filter(c => ['PENDING', 'POSTPONED', 'DEPOSITED', 'BOUNCED'].includes(c.status));
     if (show === 'paid') return all.filter(c => c.status === 'CLEARED').reverse();
     return all;
-  }, [data, show, byDate, period.from, period.to]);
+  }, [data, show, byDate, focus, period.from, period.to]);
 
   if (error) return <ErrorBox error={error} retry={refetch} />;
   const all = data || [];
@@ -51,8 +55,8 @@ export default function ChequesPage() {
   return (
     <>
       <div className="toolbar">
-        <Tabs value={direction} onChange={setDirection} items={[['OUT', t("Issued (to landlords)")], ['IN', t("Received (from tenants)")]]} />
-        <Tabs value={show} onChange={setShow} items={[['open', t("Open")], ['paid', t("Paid")], ['all', t("All")]]} />
+        <Tabs value={direction} onChange={v => { setDirection(v); setFocus(''); }} items={[['OUT', t("Issued (to landlords)")], ['IN', t("Received (from tenants)")]]} />
+        <Tabs value={focus ? '' : show} onChange={v => { setShow(v); setFocus(''); }} items={[['open', t("Open")], ['paid', t("Paid")], ['all', t("All")]]} />
         <Tabs value={byDate ? 'period' : 'any'} onChange={v => setByDate(v === 'period')} items={[['any', t("Any date")], ['period', t("Due in period")]]} />
         {byDate && <PeriodPicker />}
         <div className="grow" />
@@ -66,11 +70,17 @@ export default function ChequesPage() {
       </div>
 
       <div className="grid g4" style={{ marginBottom: 16 }}>
-        <Stat accent label={direction === 'OUT' ? t("To pay in next 30 days") : t("To deposit in next 30 days")} value={money(sum(in30))} sub={t("{0} cheques", [in30.length])} />
-        <Stat label={t("All open cheques")} value={money(sum(open))} sub={t("{0} cheques", [open.length])} />
-        <Stat label={t("Postponed")} value={all.filter(c => c.status === 'POSTPONED').length} />
-        <Stat label={t("Bounced")} value={all.filter(c => c.status === 'BOUNCED').length} />
+        <Stat accent label={direction === 'OUT' ? t("To pay in next 30 days") : t("To deposit in next 30 days")} value={money(sum(in30))} sub={t("{0} cheques", [in30.length])} onClick={() => setFocus(f => (f === 'in30' ? '' : 'in30'))} active={focus === 'in30'} />
+        <Stat label={t("All open cheques")} value={money(sum(open))} sub={t("{0} cheques", [open.length])} onClick={() => setFocus(f => (f === 'open' ? '' : 'open'))} active={focus === 'open'} />
+        <Stat label={t("Postponed")} value={all.filter(c => c.status === 'POSTPONED').length} onClick={() => setFocus(f => (f === 'POSTPONED' ? '' : 'POSTPONED'))} active={focus === 'POSTPONED'} />
+        <Stat label={t("Bounced")} value={all.filter(c => c.status === 'BOUNCED').length} onClick={() => setFocus(f => (f === 'BOUNCED' ? '' : 'BOUNCED'))} active={focus === 'BOUNCED'} />
       </div>
+      {focus && (
+        <div className="filter-chip">
+          <span>{t('Showing')}: <b>{focus === 'in30' ? (direction === 'OUT' ? t('To pay in next 30 days') : t('To deposit in next 30 days')) : focus === 'open' ? t('All open cheques') : L.chequeStatus[focus]}</b> · {t('{0} cheques', [rows.length])}</span>
+          <button className="btn btn-sm" onClick={() => setFocus('')}>{t('Show all')} ✕</button>
+        </div>
+      )}
       <div className="legend" style={{ marginBottom: 12 }}>
         <span><i style={{ background: 'var(--paid)' }} />{t("Paid")}</span>
         <span><i style={{ background: 'var(--postponed)' }} />{t("Postponed")}</span>

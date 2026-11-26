@@ -6,7 +6,7 @@ const { ah, HttpError } = require('../middleware/errorHandler');
 // Which Prisma model each foreign-key field points at (used to check it belongs to the same org)
 const REF_MODELS = {
   buildingId: 'building', unitId: 'unit', spaceId: 'space', landlordId: 'landlord',
-  tenantId: 'tenant', leaseId: 'lease', bookingId: 'booking', chequeId: 'cheque',
+  tenantId: 'tenant', leaseId: 'lease', bookingId: 'booking', chequeId: 'cheque', dealId: 'leasingDeal',
 };
 
 function coerce(type, value, field) {

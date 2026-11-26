@@ -340,3 +340,41 @@ test('date periods: quarter and year work across dashboard, ledger and reports',
   assert.ok(one.some(t => t.id === tx.id));
   assert.equal((await call('GET', `/api/reports/pnl?from=${y}-05-01&to=${y}-04-01`)).status, 422);
 });
+
+test('leasing: a deal moves through the pipeline and its money adds up', async () => {
+  const d = (await call('POST', '/api/leasing', {
+    clientName: 'Test Client', clientPhone: '+971500000000', contractType: 'YEARLY', property: 'Marina Gate', unitNo: '1204',
+    rent: 120000, cheques: 4, fee: 6000, agent: 'Ahmed Fawzy', agentCommission: 1500, brokerName: 'Outside Co', brokerCommission: 1000,
+  })).body;
+  assert.ok(d.number >= 1 && d.status === 'LEAD');
+  const second = (await call('POST', '/api/leasing', { clientName: 'Second', contractType: 'SHORT_TERM', months: 3, rent: 5000, fee: 1000 })).body;
+  assert.equal(second.number, d.number + 1, 'deal numbers count up');
+  assert.equal((await call('POST', '/api/leasing', { contractType: 'YEARLY' })).status, 422, 'client name is required');
+
+  let u = (await call('PATCH', `/api/leasing/${d.id}`, { status: 'SIGNED' })).body;
+  assert.ok(u.signedAt && u.closedAt);
+  for (const [kind, amount] of [['fee', 4000], ['client_in', 30000], ['client_out', 30000], ['commission', 1500]]) {
+    assert.equal((await call('POST', `/api/leasing/${d.id}/payments`, { kind, amount, date: new Date().toISOString().slice(0, 10) })).status, 201, kind);
+  }
+  u = (await call('GET', `/api/leasing/${d.id}`)).body;
+  assert.equal(u.money.feeCollected, 4000);
+  assert.equal(u.money.feeOutstanding, 2000);
+  assert.equal(u.money.heldForLandlord, 0);
+  assert.equal(u.money.commissionOwed, 1000);
+  assert.equal(u.money.net, 2500);
+  assert.equal(u.transactions.length, 4);
+
+  const s = (await call('GET', '/api/leasing/summary')).body;
+  assert.ok(s.signed >= 1 && s.fees >= 6000 && s.feesCollected >= 4000);
+  assert.ok(s.byAgent.some(a => a.agent === 'Ahmed Fawzy'));
+  assert.ok(s.open.LEAD >= 1);
+  const list = (await call('GET', '/api/leasing?status=LEAD,VIEWING,RESERVED')).body;
+  assert.ok(list.some(x => x.id === second.id) && !list.some(x => x.id === d.id));
+  assert.ok((await call('GET', '/api/leasing?q=Marina')).body.some(x => x.id === d.id));
+  // the fee shows in the ledger and P&L as leasing commission
+  const ledger = (await call('GET', `/api/transactions?dealId=${d.id}`)).body;
+  assert.equal(ledger.length, 4);
+  assert.equal((await call('DELETE', `/api/leasing/${d.id}`)).status, 409, 'deals with payments are cancelled, not deleted');
+  assert.equal((await call('PATCH', `/api/leasing/${second.id}`, { status: 'CANCELLED', lostReason: 'Chose another flat' })).body.status, 'CANCELLED');
+  assert.equal((await call('DELETE', `/api/leasing/${second.id}`)).status, 204);
+});
