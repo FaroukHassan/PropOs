@@ -22,7 +22,7 @@ export default function LoginPage() {
   return (
     <div className="login-wrap">
       <div className="login-side">
-        <div className="row-between"><div className="brand-name" style={{ fontSize: 22 }}>{t('Sakanly')} <span>{t('Real Estate')}</span></div><LangSwitch dark /></div>
+        <div className="row-between"><div className="brand-lockup"><img className="brand-logo lg" src={`${import.meta.env.BASE_URL}brand/logo-white.png`} alt={t('Sakanly Real Estate')} /><span className="brand-tag">{t('Real Estate')}</span></div><LangSwitch dark /></div>
         <div>
           <h1>{t("Every partition, booking and cheque.")} <em>{t("One place.")}</em></h1>
           <p className="login-blurb" style={{ color: '#aab4c9', marginTop: 14, maxWidth: 420 }}>

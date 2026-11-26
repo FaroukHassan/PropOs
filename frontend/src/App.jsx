@@ -44,7 +44,10 @@ function Sidebar({ open, onNavigate }) {
   return (
     <aside className={`sidebar ${open ? 'open' : ''}`}>
       <div className="brand">
-        <Link to="/dashboard" className="brand-name brand-link" onClick={onNavigate} title={t('Home')}>{t('Sakanly')} <span>{t('Real Estate')}</span></Link>
+        <Link to="/dashboard" className="brand-link" onClick={onNavigate} title={t('Home')}>
+          <img className="brand-logo" src={`${import.meta.env.BASE_URL}brand/logo-white.png`} alt={t('Sakanly Real Estate')} />
+          <span className="brand-tag">{t('Real Estate')}</span>
+        </Link>
         <div className="row-between" style={{ marginTop: 4 }}>
           <div className="brand-sub" style={{ marginTop: 0 }}>{t('Your home, evolved.')}</div>
           <LangSwitch dark />
