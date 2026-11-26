@@ -16,7 +16,7 @@ const seen = new Map();
 async function currentUser(id) {
   const hit = seen.get(id);
   if (hit && Date.now() - hit.at < 30000) return hit.user;
-  const user = await prisma.user.findUnique({ where: { id }, select: { id: true, orgId: true, role: true } });
+  const user = await prisma.user.findUnique({ where: { id }, select: { id: true, orgId: true, role: true, permissions: true } });
   seen.set(id, { user, at: Date.now() });
   return user;
 }

@@ -11,7 +11,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
-  if (user) return <Navigate to="/dashboard" replace />;
+  if (user) return <Navigate to="/" replace />;
 
   const submit = async e => {
     e.preventDefault();

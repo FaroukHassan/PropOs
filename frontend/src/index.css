@@ -466,3 +466,23 @@ button.stat { font: inherit; text-align: start; color: inherit; width: 100%; }
 .stat-on { border-color: var(--sand); box-shadow: 0 0 0 2px var(--sand); }
 .stat.accent.stat-on { box-shadow: 0 0 0 3px var(--sand); }
 .filter-chip { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: var(--sand-bg); border: 1px solid var(--sand-2); border-radius: var(--radius); padding: 8px 12px; margin-bottom: 12px; font-size: 13px; }
+
+/* Team permissions grid */
+.perm-grid { border: 1px solid var(--line); border-radius: var(--radius-lg); overflow: hidden; }
+.perm-row { display: grid; grid-template-columns: minmax(140px, 1.4fr) repeat(var(--cols, 3), minmax(0, 1fr)); align-items: center; gap: 6px; padding: 6px 12px; border-bottom: 1px solid var(--bg-3); font-size: 13px; }
+.perm-row:last-child { border-bottom: none; }
+.perm-head { background: var(--bg-2); font-size: 11px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: .05em; }
+.perm-cell { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border-radius: 6px; cursor: pointer; border: 1px solid transparent; color: var(--text-2); }
+.perm-cell input { margin: 0; }
+.perm-cell.on.lvl-edit { background: var(--green-bg); color: var(--green); border-color: #b9e0c9; font-weight: 600; }
+.perm-cell.on.lvl-view { background: var(--blue-bg); color: var(--blue); border-color: #c7d6f3; font-weight: 600; }
+.perm-cell.on.lvl-none { background: var(--bg-3); color: var(--text-3); font-weight: 600; }
+[dir="rtl"] .perm-head { letter-spacing: 0; text-transform: none; }
+@media (max-width: 760px) {
+  .perm-row { grid-template-columns: 1fr; gap: 4px; padding: 10px 12px; }
+  .perm-row > span:first-child { margin-bottom: 2px; }
+  .perm-head { display: none; }
+  .perm-row { display: flex; flex-wrap: wrap; }
+  .perm-row > span:first-child { flex: 1 1 100%; }
+  .perm-cell { flex: 1; justify-content: center; border-color: var(--line); }
+}

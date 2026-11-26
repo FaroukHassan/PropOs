@@ -6,6 +6,7 @@ const morgan = require('morgan');
 
 const { errorHandler } = require('./middleware/errorHandler');
 const { authenticate, writeGuard } = require('./middleware/auth');
+const { authorize } = require('./lib/permissions');
 const portfolio = require('./routes/portfolio');
 const occupancy = require('./routes/occupancy');
 const money = require('./routes/money');
@@ -30,7 +31,7 @@ app.get('/health', (req, res) => res.json({ status: 'ok', ts: new Date() }));
 app.use('/api/auth', require('./routes/auth'));
 
 const api = express.Router();
-api.use(authenticate, writeGuard);
+api.use(authenticate, writeGuard, authorize);
 api.use('/buildings', portfolio.buildings);
 api.use('/landlords', portfolio.landlords);
 api.use('/units', portfolio.units);

@@ -378,3 +378,42 @@ test('leasing: a deal moves through the pipeline and its money adds up', async (
   assert.equal((await call('PATCH', `/api/leasing/${second.id}`, { status: 'CANCELLED', lostReason: 'Chose another flat' })).body.status, 'CANCELLED');
   assert.equal((await call('DELETE', `/api/leasing/${second.id}`)).status, 204);
 });
+
+test('permissions: super admin decides what each team member can see and change', async () => {
+  const email = `agent${Date.now()}@sakanly.com`;
+  const created = await call('POST', '/api/auth/users', {
+    name: 'Leasing Agent', email, password: 'agentpass1', role: 'MANAGER',
+    permissions: { dashboard: 'none', ledger: 'none', reports: 'none', cheques: 'view', leasing: 'edit', bogus: 'edit', rent: 'nonsense' },
+  });
+  assert.equal(created.status, 201);
+  assert.equal(created.body.access.ledger, 'none');
+  assert.equal(created.body.access.cheques, 'view');
+  assert.equal(created.body.access.rent, 'edit', 'unknown values fall back to the role default');
+  assert.ok(!('bogus' in created.body.access));
+  const tk = (await call('POST', '/api/auth/login', { email, password: 'agentpass1' })).body.token;
+  const me = (await call('GET', '/api/auth/me', null, tk)).body;
+  assert.equal(me.access.leasing, 'edit');
+
+  assert.equal((await call('GET', '/api/dashboard', null, tk)).status, 403);
+  assert.equal((await call('GET', '/api/transactions', null, tk)).status, 403);
+  assert.equal((await call('GET', '/api/reports/pnl', null, tk)).status, 403);
+  assert.equal((await call('GET', '/api/cheques', null, tk)).status, 200);
+  assert.equal((await call('POST', '/api/cheques', { direction: 'OUT', amount: 10, dueDate: '2027-01-01', number: 'X1' }, tk)).status, 403, 'view only');
+  assert.equal((await call('GET', '/api/units', null, tk)).status, 200, 'lists used by forms stay readable');
+  const deal = await call('POST', '/api/leasing', { clientName: 'Agent Client' }, tk);
+  assert.equal(deal.status, 201);
+  // rent page can record rent without full ledger access
+  const lease = (await call('GET', '/api/leases?active=1')).body[0];
+  assert.equal((await call('POST', '/api/transactions', { date: '2026-11-01', type: 'INCOME', category: 'RENT', description: 'Rent', amount: 10, leaseId: lease.id }, tk)).status, 201);
+  assert.equal((await call('POST', '/api/transactions', { date: '2026-11-01', type: 'EXPENSE', category: 'ADMIN', description: 'x', amount: 10 }, tk)).status, 403);
+
+  // the admin changes access and it applies straight away
+  await call('PATCH', `/api/auth/users/${created.body.id}`, { permissions: { ...created.body.access, ledger: 'view' } });
+  assert.equal((await call('GET', '/api/transactions', null, tk)).status, 200);
+  // only super admins manage the team
+  assert.equal((await call('POST', '/api/auth/users', { name: 'x', email: 'x2@x.com', password: 'longenough' }, tk)).status, 403);
+  // back to role defaults
+  const reset = (await call('PATCH', `/api/auth/users/${created.body.id}`, { permissions: null })).body;
+  assert.equal(reset.access.dashboard, 'edit');
+  await call('DELETE', `/api/auth/users/${created.body.id}`);
+});

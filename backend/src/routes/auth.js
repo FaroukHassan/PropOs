@@ -2,11 +2,14 @@
 const router = require('express').Router();
 const bcrypt = require('bcryptjs');
 const prisma = require('../db');
+const { Prisma } = require('@prisma/client');
 const { ah, HttpError } = require('../middleware/errorHandler');
 const { signToken, authenticate, requireRole, forgetUser } = require('../middleware/auth');
+const { effective, clean, MODULES } = require('../lib/permissions');
 const ROLES = ['ADMIN', 'MANAGER', 'VIEWER'];
 
-const publicUser = u => ({ id: u.id, name: u.name, email: u.email, role: u.role });
+// permissions: what the admin set (custom); access: the effective level per section
+const publicUser = u => ({ id: u.id, name: u.name, email: u.email, role: u.role, permissions: u.permissions || null, access: effective(u) });
 
 // Simple in-memory throttle on failed logins: 10 failures per email per 15 minutes
 const failures = new Map();
@@ -54,6 +57,7 @@ router.post('/password', authenticate, ah(async (req, res) => {
 }));
 
 // ─── Team management (admins) ────────────────────────────────────────────────
+router.get('/sections', authenticate, (req, res) => res.json(MODULES));
 router.get('/users', authenticate, ah(async (req, res) => {
   const users = await prisma.user.findMany({ where: { orgId: req.user.orgId }, orderBy: { createdAt: 'asc' } });
   res.json(users.map(publicUser));
@@ -62,11 +66,12 @@ router.get('/users', authenticate, ah(async (req, res) => {
 router.post('/users', authenticate, requireRole('ADMIN'), ah(async (req, res) => {
   const email = String(req.body.email || '').trim().toLowerCase();
   const { name, password, role = 'MANAGER' } = req.body;
+  const permissions = clean(req.body.permissions);
   if (!email || !name) throw new HttpError(422, 'Name and email are required');
   if (!password || String(password).length < 8) throw new HttpError(422, 'Password must be at least 8 characters');
   if (!ROLES.includes(role)) throw new HttpError(422, 'Unknown role');
   const user = await prisma.user.create({
-    data: { email, name, role, orgId: req.user.orgId, passwordHash: await bcrypt.hash(String(password), 12) },
+    data: { email, name, role, orgId: req.user.orgId, passwordHash: await bcrypt.hash(String(password), 12), ...(permissions !== undefined ? { permissions: permissions ?? undefined } : {}) },
   });
   res.status(201).json(publicUser(user));
 }));
@@ -80,6 +85,15 @@ router.patch('/users/:id', authenticate, requireRole('ADMIN'), ah(async (req, re
     if (!ROLES.includes(req.body.role)) throw new HttpError(422, 'Unknown role');
     if (user.id === req.user.id && req.body.role !== 'ADMIN') throw new HttpError(422, 'You cannot remove your own admin access');
     data.role = req.body.role;
+  }
+  if (req.body.permissions !== undefined) {
+    const p = clean(req.body.permissions);
+    data.permissions = p === null ? Prisma.DbNull : p;
+  }
+  if (req.body.email) {
+    const email = String(req.body.email).trim().toLowerCase();
+    if (!/^\S+@\S+\.\S+$/.test(email)) throw new HttpError(422, 'Enter a valid email');
+    data.email = email;
   }
   if (req.body.password) {
     if (String(req.body.password).length < 8) throw new HttpError(422, 'Password must be at least 8 characters');

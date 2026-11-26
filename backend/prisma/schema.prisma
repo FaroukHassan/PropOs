@@ -43,6 +43,7 @@ model User {
   passwordHash String
   name         String
   role         Role     @default(MANAGER)
+  permissions  Json?    // non-admins: access per section, e.g. { "ledger": "view", "import": "none" }
   orgId        String
   org          Org      @relation(fields: [orgId], references: [id])
   createdAt    DateTime @default(now())
