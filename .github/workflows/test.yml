@@ -18,7 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 20, cache: npm, cache-dependency-path: backend/package-lock.json }
+        with: { node-version: 22, cache: npm, cache-dependency-path: backend/package-lock.json }
       - run: npm ci
       - run: npx prisma migrate deploy
       - run: SEED_DEMO=1 node prisma/seed.js
@@ -29,5 +29,5 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 20, cache: npm, cache-dependency-path: frontend/package-lock.json }
+        with: { node-version: 22, cache: npm, cache-dependency-path: frontend/package-lock.json }
       - run: npm ci && npm run build

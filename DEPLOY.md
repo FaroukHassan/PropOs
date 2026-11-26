@@ -13,7 +13,7 @@ The API and database run on **Railway** (about $5/month on the Hobby plan). The 
    |---|---|
    | `DATABASE_URL` | Reference → Postgres → `DATABASE_URL` |
    | `JWT_SECRET` | A long random string (64+ characters) |
-   | `ALLOWED_ORIGINS` | `https://faroukhassan.github.io` |
+   | `ALLOWED_ORIGINS` | `https://crm.sakanly.com` |
    | `SEED_PASSWORD` | A temporary password for the three team logins |
    | `NODE_ENV` | `production` |
 
@@ -25,10 +25,11 @@ Each deploy runs `prisma migrate deploy` (database changes), then `prisma/seed.j
 
 ## 2. Website on GitHub Pages
 
-1. Repo **Settings → Pages → Source: GitHub Actions**.
+1. Repo **Settings → Pages → Source: GitHub Actions**, and **Custom domain: `crm.sakanly.com`** (tick *Enforce HTTPS* once the certificate is ready).
+   At the sakanly.com DNS provider add: `CNAME  crm  →  faroukhassan.github.io`.
 2. Repo **Settings → Secrets and variables → Actions → Variables → New variable**: `API_URL` = `https://<railway-domain>/api`.
 3. **Actions → Deploy website → Run workflow** (afterwards it runs on every push that touches `frontend/`).
-4. The site is at `https://faroukhassan.github.io/PropOs/`.
+4. The site is at `https://crm.sakanly.com`.
 
 ## 3. First sign-in
 
@@ -45,6 +46,6 @@ Use the import script in the README (`scripts/import_sakanly_workbook.py`) with 
 | What you see | Fix |
 |---|---|
 | Website says "Cannot reach the server" | `API_URL` variable is wrong or the Railway service is down; check `/health` |
-| Sign-in works locally but not on the site | `ALLOWED_ORIGINS` must be exactly `https://faroukhassan.github.io` (no path, no trailing slash) |
+| Sign-in works locally but not on the site | `ALLOWED_ORIGINS` must be exactly `https://crm.sakanly.com` (no path, no trailing slash) |
 | Deploy fails at `prisma migrate deploy` with "relation already exists" | Old tables from the first version: see the upgrade note above |
 | Railway crashes with "JWT_SECRET must be set" | Add the `JWT_SECRET` variable |
