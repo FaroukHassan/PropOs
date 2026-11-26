@@ -273,3 +273,52 @@ test('other org data is invisible', async () => {
   await prisma.building.delete({ where: { id: b.id } });
   await prisma.org.delete({ where: { id: org.id } });
 });
+
+test('apartment filter narrows lists, dashboard and reports to one flat or building', async () => {
+  const units = (await call('GET', '/api/units')).body;
+  const flat = units.find(u => u.mode === 'PARTITIONS' && u.spaces.length);
+  const other = units.filter(u => u.buildingId !== flat.buildingId);
+
+  const board = (await call('GET', `/api/spaces/board?unitId=${flat.id}`)).body;
+  assert.equal(board.buildings.length, 1);
+  assert.deepEqual(board.buildings[0].units.map(u => u.id), [flat.id]);
+
+  const scopedUnits = (await call('GET', `/api/units?buildingId=${flat.buildingId}`)).body;
+  assert.ok(scopedUnits.length && scopedUnits.every(u => u.buildingId === flat.buildingId));
+  if (other.length) assert.ok(!scopedUnits.some(u => u.id === other[0].id));
+
+  const rent = (await call('GET', `/api/reports/rent-collection?unitId=${flat.id}`)).body;
+  assert.ok(rent.rows.every(r => r.unitId === flat.id));
+  const tx = (await call('GET', `/api/transactions?buildingId=${flat.buildingId}`)).body;
+  assert.ok(tx.every(t => t.unit?.buildingId === flat.buildingId));
+  const tenants = (await call('GET', `/api/tenants?unitId=${flat.id}`)).body;
+  assert.ok(tenants.every(t => t.leases.some(l => l.unitId === flat.id)));
+  for (const p of ['/api/cheques', '/api/bookings', '/api/maintenance', '/api/leases']) {
+    const rows = (await call('GET', `${p}?unitId=${flat.id}`)).body;
+    assert.ok(rows.every(r => r.unitId === flat.id), p);
+  }
+
+  const all = (await call('GET', '/api/dashboard')).body;
+  const one = (await call('GET', `/api/dashboard?unitId=${flat.id}`)).body;
+  assert.equal(one.partitions.total, flat.spaces.length);
+  assert.ok(one.partitions.total <= all.partitions.total);
+  assert.ok(one.rent.due <= all.rent.due);
+
+  const per = (await call('GET', `/api/reports/units?unitId=${flat.id}`)).body;
+  assert.deepEqual(per.rows.map(r => r.unitId), [flat.id]);
+  assert.equal(per.overheads.expenses, 0, 'company overheads are left out when one flat is chosen');
+});
+
+test('rent collection over a date range lists each month due in it', async () => {
+  const now = new Date();
+  const y = now.getUTCFullYear(), m = now.getUTCMonth();
+  const iso = d => d.toISOString().slice(0, 10);
+  const from = iso(new Date(Date.UTC(y, m - 1, 1))), to = iso(new Date(Date.UTC(y, m + 1, 0)));
+  const r = (await call('GET', `/api/reports/rent-collection?from=${from}&to=${to}`)).body;
+  const months = new Set(r.rows.map(x => x.month));
+  const thisMonth = (await call('GET', '/api/reports/rent-collection')).body;
+  assert.ok(months.size >= 1 && months.size <= 2);
+  assert.ok(r.rows.every(x => iso(new Date(x.dueDate)) >= from && iso(new Date(x.dueDate)) <= to));
+  assert.ok(r.rows.length >= thisMonth.rows.filter(x => iso(new Date(x.dueDate)) <= to).length);
+  assert.equal((await call('GET', `/api/reports/rent-collection?from=${to}&to=${from}`)).status, 422);
+});

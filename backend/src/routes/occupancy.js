@@ -4,6 +4,7 @@ const prisma = require('../db');
 const { crudRouter, findOwned, coerce } = require('../lib/crud');
 const { ah, HttpError } = require('../middleware/errorHandler');
 const { nights, startOfDay } = require('../lib/dates');
+const { unitScope, isScoped } = require('../lib/scope');
 
 // ─── Tenants ─────────────────────────────────────────────────────────────────
 const tenants = crudRouter({
@@ -17,6 +18,8 @@ const tenants = crudRouter({
   },
   orderBy: { name: 'asc' },
   search: ['name', 'phone', 'email'],
+  // with the apartment filter on, show the people who have lived there
+  scope: q => (isScoped(q) ? { leases: { some: unitScope(q) } } : {}),
 });
 
 // ─── Leases ──────────────────────────────────────────────────────────────────
@@ -34,6 +37,7 @@ const leases = express.Router();
 
 leases.get('/', ah(async (req, res) => {
   const where = { orgId: req.user.orgId };
+  Object.assign(where, unitScope(req.query));
   for (const f of ['unitId', 'spaceId', 'tenantId', 'status']) if (req.query[f]) where[f] = req.query[f];
   if (req.query.active) where.status = { in: ['ACTIVE', 'NOTICE'] };
   res.json(await prisma.lease.findMany({
@@ -112,6 +116,7 @@ const bookings = express.Router();
 
 bookings.get('/', ah(async (req, res) => {
   const where = { orgId: req.user.orgId };
+  Object.assign(where, unitScope(req.query));
   for (const f of ['unitId', 'spaceId', 'status', 'channel']) if (req.query[f]) where[f] = req.query[f];
   if (req.query.from || req.query.to) {
     // bookings that overlap the window

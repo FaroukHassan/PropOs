@@ -4,6 +4,7 @@ const prisma = require('../db');
 const { crudRouter, findOwned } = require('../lib/crud');
 const { ah, HttpError } = require('../middleware/errorHandler');
 const { monthRange, startOfDay, addDays, monthKey } = require('../lib/dates');
+const { unitScope } = require('../lib/scope');
 
 const INCOME_CATS = ['RENT', 'DEPOSIT', 'BOOKING', 'LEASING_COMMISSION', 'OTHER_INCOME'];
 
@@ -11,7 +12,7 @@ const INCOME_CATS = ['RENT', 'DEPOSIT', 'BOOKING', 'LEASING_COMMISSION', 'OTHER_
 const transactions = express.Router();
 
 function txWhere(req) {
-  const where = { orgId: req.user.orgId };
+  const where = { orgId: req.user.orgId, ...unitScope(req.query) };
   for (const f of ['type', 'category', 'unitId', 'spaceId', 'leaseId', 'bookingId', 'landlordId', 'method']) {
     if (req.query[f]) where[f] = req.query[f];
   }
@@ -95,7 +96,7 @@ crudRouter({
 const cheques = express.Router();
 
 cheques.get('/', ah(async (req, res) => {
-  const where = { orgId: req.user.orgId };
+  const where = { orgId: req.user.orgId, ...unitScope(req.query) };
   for (const f of ['direction', 'status', 'unitId', 'leaseId', 'landlordId']) if (req.query[f]) where[f] = req.query[f];
   if (req.query.dueWithin) {
     const by = addDays(startOfDay(), Number(req.query.dueWithin));
@@ -200,6 +201,7 @@ const maintenance = crudRouter({
   },
   include: { unit: { include: { building: true } } },
   filters: ['unitId', 'status', 'priority'],
+  scope: unitScope,
   beforeSave: async (data, req, existing) => {
     if (data.status === 'RESOLVED' && existing?.status !== 'RESOLVED') data.resolvedAt = new Date();
     if (data.status && data.status !== 'RESOLVED') data.resolvedAt = null;

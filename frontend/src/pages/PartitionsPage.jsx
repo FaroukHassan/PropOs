@@ -1,6 +1,7 @@
 // frontend/src/pages/PartitionsPage.jsx — the availability board (replaces the partitions sheet)
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { useScope } from '../lib/scope';
 import { useApi, useSticky } from '../lib/hooks';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
@@ -30,7 +31,8 @@ function availabilityText(buildings) {
 export default function PartitionsPage() {
   const { can } = useAuth();
   const toast = useToast();
-  const { data, loading, error, refetch } = useApi('/spaces/board');
+  const { scoped } = useScope();
+  const { data, loading, error, refetch } = useApi(scoped('/spaces/board'));
   const units = useApi('/units?mode=PARTITIONS');
   const tenants = useApi('/tenants');
   const [filter, setFilter] = useSticky('board_filter', 'ALL');

@@ -1,6 +1,7 @@
 // frontend/src/pages/UnitsPage.jsx — all apartments across modes
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useScope } from '../lib/scope';
 import { useApi, useSticky } from '../lib/hooks';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
@@ -13,7 +14,8 @@ export default function UnitsPage() {
   const { can } = useAuth();
   const toast = useToast();
   const [mode, setMode] = useSticky('units_mode', '');
-  const { data, loading, error, refetch } = useApi(`/units${mode ? `?mode=${mode}` : ''}`);
+  const { scoped, refetchUnits } = useScope();
+  const { data, loading, error, refetch } = useApi(scoped('/units', { mode }));
   const buildings = useApi('/buildings');
   const landlords = useApi('/landlords');
   const [modal, setModal] = useState(null);
@@ -70,7 +72,7 @@ export default function UnitsPage() {
       )}
       {modal === 'unit' && (
         <FormModal title="Add apartment" wide fields={unitFields(buildings.data, landlords.data)} initial={{ mode: mode || 'PARTITIONS' }} onClose={() => setModal(null)}
-          onSubmit={async v => { const u = await api.post('/units', v); toast('Apartment added'); nav(`/units/${u.id}`); }} />
+          onSubmit={async v => { const u = await api.post('/units', v); toast('Apartment added'); refetchUnits(); nav(`/units/${u.id}`); }} />
       )}
     </>
   );

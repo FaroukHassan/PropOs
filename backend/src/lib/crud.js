@@ -66,11 +66,13 @@ async function findOwned(model, id, orgId, include) {
  * crudRouter({ model, spec, include, orderBy, filters, search, beforeSave })
  *   filters: query params passed straight through as equality filters (e.g. ['unitId','status'])
  *   search:  string fields matched by ?q=
+ *   scope:   query → extra where (e.g. the app-wide apartment filter)
  */
-function crudRouter({ model, spec, include, listInclude, orderBy = { createdAt: 'desc' }, filters = [], search = [], beforeSave, afterSave, router = express.Router() }) {
+function crudRouter({ model, spec, include, listInclude, orderBy = { createdAt: 'desc' }, filters = [], search = [], scope, beforeSave, afterSave, router = express.Router() }) {
   router.get('/', ah(async (req, res) => {
     const where = { orgId: req.user.orgId };
     for (const f of filters) if (req.query[f]) where[f] = req.query[f];
+    if (scope) Object.assign(where, scope(req.query));
     if (req.query.q && search.length) {
       where.OR = search.map(f => ({ [f]: { contains: req.query.q, mode: 'insensitive' } }));
     }

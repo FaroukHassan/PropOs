@@ -1,5 +1,6 @@
 // frontend/src/pages/LedgerPage.jsx — every dirham in and out (replaces the Transaction Log / BANK sheet)
 import { useState } from 'react';
+import { useScope } from '../lib/scope';
 import { useApi, useSticky } from '../lib/hooks';
 import { api, qs } from '../lib/api';
 import { useAuth } from '../lib/auth';
@@ -13,10 +14,10 @@ export default function LedgerPage() {
   const [month, setMonth] = useSticky('ledger_month', monthKey());
   const [type, setType] = useSticky('ledger_type', '');
   const [category, setCategory] = useState('');
-  const [unitId, setUnitId] = useState('');
   const [q, setQ] = useState('');
   const units = useApi('/units');
-  const params = qs({ month, type, category, unitId, q });
+  const { params: scope } = useScope();
+  const params = qs({ month, type, category, q, ...scope });
   const { data, loading, error, refetch } = useApi(`/transactions${params}`);
   const summary = useApi(`/transactions/summary${params}`);
   const [modal, setModal] = useState(null);
@@ -33,10 +34,6 @@ export default function LedgerPage() {
         <select className="input input-sm" value={category} onChange={e => setCategory(e.target.value)} aria-label="Category">
           <option value="">All categories</option>
           {Object.entries(L.category).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </select>
-        <select className="input input-sm" value={unitId} onChange={e => setUnitId(e.target.value)} aria-label="Apartment">
-          <option value="">All apartments</option>
-          {(units.data || []).map(u => <option key={u.id} value={u.id}>{unitName(u)}</option>)}
         </select>
         <input className="input input-sm" placeholder="Search" value={q} onChange={e => setQ(e.target.value)} style={{ width: 150 }} />
         <div className="grow" />

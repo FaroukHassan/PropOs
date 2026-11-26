@@ -3,16 +3,17 @@ const express = require('express');
 const prisma = require('../db');
 const { ah, HttpError } = require('../middleware/errorHandler');
 const { monthRange, lastMonths, startOfDay, addDays, nightsWithin, monthKey } = require('../lib/dates');
+const { unitScope, unitWhere, isScoped } = require('../lib/scope');
 
 const sum = (rows, f = r => r.amount) => rows.reduce((s, r) => s + (f(r) || 0), 0);
 const round = n => Math.round(n * 100) / 100;
 
 // Monthly leases that owe rent for the month, with what has been collected against them
-async function rentCollection(orgId, key) {
+async function rentCollection(orgId, key, q = {}) {
   const { start, end } = monthRange(key);
   const leases = await prisma.lease.findMany({
     where: {
-      orgId, rentPeriod: 'MONTHLY', startDate: { lt: end },
+      orgId, ...unitScope(q), rentPeriod: 'MONTHLY', startDate: { lt: end },
       OR: [{ endDate: null }, { endDate: { gte: start } }],
       status: { in: ['ACTIVE', 'NOTICE', 'ENDED'] },
     },
@@ -37,7 +38,7 @@ async function rentCollection(orgId, key) {
       const balance = round(due - collected);
       const status = balance <= 0 ? 'PAID' : collected > 0 ? 'PARTIAL' : dueDate < today ? 'OVERDUE' : 'DUE';
       return {
-        leaseId: l.id, tenant: l.tenant.name, phone: l.tenant.phone,
+        month: key, leaseId: l.id, tenant: l.tenant.name, phone: l.tenant.phone,
         building: l.unit.building.name, unit: l.unit.number, unitId: l.unitId, space: l.space?.code || null,
         due, collected, balance: Math.max(balance, 0), dueDate, status,
       };
@@ -46,13 +47,13 @@ async function rentCollection(orgId, key) {
 }
 
 // Holiday-home occupancy and revenue earned within a month (pro-rated by night)
-async function holidayStats(orgId, key) {
+async function holidayStats(orgId, key, q = {}) {
   const { start, end } = monthRange(key);
   // Each bookable thing counts once: a holiday flat, or each partition of a partitioned holiday flat
-  const homes = await prisma.unit.findMany({ where: { orgId, mode: 'HOLIDAY', active: true }, include: { _count: { select: { spaces: true } } } });
+  const homes = await prisma.unit.findMany({ where: { orgId, ...unitWhere(q), mode: 'HOLIDAY', active: true }, include: { _count: { select: { spaces: true } } } });
   const units = homes.reduce((n, u) => n + (u._count.spaces || 1), 0);
   const bookings = await prisma.booking.findMany({
-    where: { orgId, status: { notIn: ['CANCELLED', 'INQUIRY'] }, checkIn: { lt: end }, checkOut: { gt: start } },
+    where: { orgId, ...unitScope(q), status: { notIn: ['CANCELLED', 'INQUIRY'] }, checkIn: { lt: end }, checkOut: { gt: start } },
   });
   const daysInMonth = Math.round((end - start) / 86400000);
   let bookedNights = 0, revenue = 0;
@@ -81,16 +82,17 @@ router.get('/dashboard', ah(async (req, res) => {
   const in14 = addDays(today, 14);
   const months = lastMonths(6, key);
   const sixStart = monthRange(months[0]).start;
+  const q = req.query, scope = unitScope(q);
 
   const [monthTx, trendTx, spaces, collection, holiday, chequesDue, bounced, openMaint, arrivals, departures] = await Promise.all([
-    prisma.transaction.findMany({ where: { orgId, date: { gte: start, lt: end } }, select: { type: true, category: true, amount: true } }),
-    prisma.transaction.findMany({ where: { orgId, date: { gte: sixStart, lt: end } }, select: { type: true, amount: true, date: true } }),
-    prisma.space.groupBy({ by: ['status'], where: { orgId, unit: { active: true } }, _count: true }),
-    rentCollection(orgId, key),
-    holidayStats(orgId, key),
+    prisma.transaction.findMany({ where: { orgId, ...scope, date: { gte: start, lt: end } }, select: { type: true, category: true, amount: true } }),
+    prisma.transaction.findMany({ where: { orgId, ...scope, date: { gte: sixStart, lt: end } }, select: { type: true, amount: true, date: true } }),
+    prisma.space.groupBy({ by: ['status'], where: { orgId, unit: { active: true, ...unitWhere(q) } }, _count: true }),
+    rentCollection(orgId, key, q),
+    holidayStats(orgId, key, q),
     prisma.cheque.findMany({
       where: {
-        orgId,
+        orgId, ...scope,
         OR: [
           { status: 'PENDING', dueDate: { lte: in14 } },
           { status: 'POSTPONED', OR: [{ postponedTo: { lte: in14 } }, { postponedTo: null, dueDate: { lte: in14 } }] },
@@ -98,17 +100,17 @@ router.get('/dashboard', ah(async (req, res) => {
       },
       include: { unit: { include: { building: true } } }, orderBy: { dueDate: 'asc' }, take: 10,
     }),
-    prisma.cheque.groupBy({ by: ['status'], where: { orgId, status: { in: ['BOUNCED', 'POSTPONED'] } }, _count: true }),
+    prisma.cheque.groupBy({ by: ['status'], where: { orgId, ...scope, status: { in: ['BOUNCED', 'POSTPONED'] } }, _count: true }),
     prisma.maintenanceRequest.findMany({
-      where: { orgId, status: { not: 'RESOLVED' } }, include: { unit: { include: { building: true } } },
+      where: { orgId, ...scope, status: { not: 'RESOLVED' } }, include: { unit: { include: { building: true } } },
       orderBy: [{ priority: 'desc' }, { createdAt: 'asc' }], take: 6,
     }),
     prisma.booking.findMany({
-      where: { orgId, status: { in: ['CONFIRMED'] }, checkIn: { gte: today, lt: addDays(today, 7) } },
+      where: { orgId, ...scope, status: { in: ['CONFIRMED'] }, checkIn: { gte: today, lt: addDays(today, 7) } },
       include: { unit: { include: { building: true } } }, orderBy: { checkIn: 'asc' },
     }),
     prisma.booking.findMany({
-      where: { orgId, status: { in: ['CHECKED_IN', 'CONFIRMED'] }, checkOut: { gte: today, lt: addDays(today, 7) } },
+      where: { orgId, ...scope, status: { in: ['CHECKED_IN', 'CONFIRMED'] }, checkOut: { gte: today, lt: addDays(today, 7) } },
       include: { unit: { include: { building: true } } }, orderBy: { checkOut: 'asc' },
     }),
   ]);
@@ -152,11 +154,29 @@ router.get('/dashboard', ah(async (req, res) => {
 }));
 
 // ─── Reports ─────────────────────────────────────────────────────────────────
+// One month (?month=2026-11), or every rent instalment due between two dates (?from=2026-09-01&to=2026-11-30).
+// Both can be narrowed to an apartment or building with the app-wide filter.
 router.get('/reports/rent-collection', ah(async (req, res) => {
-  const key = req.query.month || monthKey();
-  const rows = await rentCollection(req.user.orgId, key);
+  const { from, to } = req.query;
+  let rows, key = null;
+  if (from || to) {
+    const f = new Date(from || to), t = new Date(to || from);
+    if (Number.isNaN(f.getTime()) || Number.isNaN(t.getTime()) || f > t) throw new HttpError(422, 'Choose a valid date range');
+    const fromDay = startOfDay(f), toEnd = addDays(startOfDay(t), 1);
+    const keys = [];
+    for (let k = monthKey(fromDay); k <= monthKey(t) && keys.length < 36; ) {
+      keys.push(k);
+      const [y, m] = k.split('-').map(Number);
+      k = `${m === 12 ? y + 1 : y}-${String(m === 12 ? 1 : m + 1).padStart(2, '0')}`;
+    }
+    const perMonth = await Promise.all(keys.map(k => rentCollection(req.user.orgId, k, req.query)));
+    rows = perMonth.flat().filter(r => r.dueDate >= fromDay && r.dueDate < toEnd);
+  } else {
+    key = req.query.month || monthKey();
+    rows = await rentCollection(req.user.orgId, key, req.query);
+  }
   res.json({
-    month: key, rows,
+    month: key, from: from || null, to: to || null, rows,
     totals: { due: round(sum(rows, r => r.due)), collected: round(sum(rows, r => r.collected)), outstanding: round(sum(rows, r => r.balance)) },
   });
 }));
@@ -165,7 +185,7 @@ router.get('/reports/pnl', ah(async (req, res) => {
   const key = req.query.month || monthKey();
   const { start, end } = monthRange(key);
   const rows = await prisma.transaction.groupBy({
-    by: ['type', 'category'], where: { orgId: req.user.orgId, date: { gte: start, lt: end } }, _sum: { amount: true },
+    by: ['type', 'category'], where: { orgId: req.user.orgId, ...unitScope(req.query), date: { gte: start, lt: end } }, _sum: { amount: true },
   });
   const pick = t => rows.filter(r => r.type === t).map(r => ({ category: r.category, total: round(r._sum.amount) })).sort((a, b) => b.total - a.total);
   const income = pick('INCOME'), expenses = pick('EXPENSE');
@@ -179,8 +199,8 @@ router.get('/reports/units', ah(async (req, res) => {
   const { start, end } = monthRange(key);
   const orgId = req.user.orgId;
   const [units, grouped] = await Promise.all([
-    prisma.unit.findMany({ where: { orgId }, include: { building: true, landlord: true, _count: { select: { spaces: true } } } }),
-    prisma.transaction.groupBy({ by: ['unitId', 'type', 'category'], where: { orgId, date: { gte: start, lt: end } }, _sum: { amount: true } }),
+    prisma.unit.findMany({ where: { orgId, ...unitWhere(req.query) }, include: { building: true, landlord: true, _count: { select: { spaces: true } } } }),
+    prisma.transaction.groupBy({ by: ['unitId', 'type', 'category'], where: { orgId, ...unitScope(req.query), date: { gte: start, lt: end } }, _sum: { amount: true } }),
   ]);
   const rows = units.map(u => {
     const mine = grouped.filter(g => g.unitId === u.id);
@@ -195,7 +215,8 @@ router.get('/reports/units', ah(async (req, res) => {
       otherExpenses: round(expenses - landlordRent - dewa), expenses: round(expenses), net: round(income - expenses),
     };
   }).sort((a, b) => b.net - a.net);
-  const unassigned = grouped.filter(g => !g.unitId);
+  // company overheads aren't tied to an apartment, so they drop out when filtering by one
+  const unassigned = isScoped(req.query) ? [] : grouped.filter(g => !g.unitId);
   const overheadIncome = sum(unassigned.filter(g => g.type === 'INCOME'), g => g._sum.amount);
   const overheads = sum(unassigned.filter(g => g.type === 'EXPENSE'), g => g._sum.amount);
   const unitsNet = sum(rows, r => r.net);

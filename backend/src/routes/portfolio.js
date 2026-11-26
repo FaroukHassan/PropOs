@@ -3,6 +3,7 @@ const express = require('express');
 const prisma = require('../db');
 const { crudRouter } = require('../lib/crud');
 const { ah } = require('../middleware/errorHandler');
+const { unitWhere } = require('../lib/scope');
 
 // P2 before P10; beds after partitions
 const byCode = (a, b) => a.code.localeCompare(b.code, undefined, { numeric: true, sensitivity: 'base' });
@@ -42,9 +43,8 @@ const unitsRouter = express.Router();
 
 // List with live occupancy stats per unit
 unitsRouter.get('/', ah(async (req, res) => {
-  const where = { orgId: req.user.orgId };
+  const where = { orgId: req.user.orgId, ...unitWhere(req.query) };
   if (req.query.mode) where.mode = req.query.mode;
-  if (req.query.buildingId) where.buildingId = req.query.buildingId;
   const units = await prisma.unit.findMany({
     where,
     include: {
@@ -86,8 +86,7 @@ const spacesRouter = express.Router();
 
 // Availability board: building → unit → spaces, the replacement for the availability sheet
 spacesRouter.get('/board', ah(async (req, res) => {
-  const where = { orgId: req.user.orgId, mode: 'PARTITIONS', active: true };
-  if (req.query.buildingId) where.buildingId = req.query.buildingId;
+  const where = { orgId: req.user.orgId, mode: 'PARTITIONS', active: true, ...unitWhere(req.query) };
   const units = await prisma.unit.findMany({
     where,
     include: {

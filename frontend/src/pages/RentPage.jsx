@@ -1,60 +1,90 @@
 // frontend/src/pages/RentPage.jsx — who has paid this month (replaces "Rent by Partition")
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { useScope } from '../lib/scope';
 import { useApi, useSticky } from '../lib/hooks';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
-import { money, date, L, monthKey, monthLabel, today, options, downloadCsv } from '../lib/format';
+import { money, date, L, monthKey, monthLabel, today, options, downloadCsv, shiftMonth } from '../lib/format';
 import { Spinner, ErrorBox, Empty, FormModal, Badge, MonthPicker, Stat, Tabs, useToast } from '../components/ui';
 
 export default function RentPage() {
   const { can } = useAuth();
   const toast = useToast();
+  const { scoped, short } = useScope();
+  const [period, setPeriod] = useSticky('rent_period', 'month');
   const [month, setMonth] = useSticky('rent_month', monthKey());
+  const [from, setFrom] = useSticky('rent_from', `${shiftMonth(monthKey(), -2)}-01`);
+  const [to, setTo] = useSticky('rent_to', today());
   const [show, setShow] = useSticky('rent_show', 'unpaid');
-  const { data, loading, error, refetch } = useApi(`/reports/rent-collection?month=${month}`);
+  const [q, setQ] = useState('');
+  const range = period === 'range';
+  const { data, loading, error, refetch } = useApi(scoped('/reports/rent-collection', range ? { from, to } : { month }));
   const [pay, setPay] = useState(null);
+
+  const all = data?.rows || [];
+  const rows = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return all.filter(r =>
+      (show === 'all' || (show === 'unpaid' ? r.status !== 'PAID' : r.status === show))
+      && (!needle || [r.tenant, r.phone, r.space, r.unit].some(x => String(x || '').toLowerCase().includes(needle))));
+  }, [all, show, q]);
 
   if (error) return <ErrorBox error={error} retry={refetch} />;
   if (loading && !data) return <Spinner />;
-  const rows = data.rows.filter(r => show === 'all' || r.status !== 'PAID');
   const groups = {};
   for (const r of rows) (groups[`${r.building} · Flat ${r.unit}`] ||= []).push(r);
-  const paidCount = data.rows.filter(r => r.status === 'PAID').length;
+  const paidCount = all.filter(r => r.status === 'PAID').length;
+  const overdue = all.filter(r => r.status === 'OVERDUE');
+  const periodText = range ? `${date(from)} – ${date(to)}` : monthLabel(month);
+  const fileTag = `${range ? `${from}_to_${to}` : month}${short ? `-${short.replace(/\s+/g, '-')}` : ''}`;
 
   const reminder = r => {
-    const msg = `Hi ${r.tenant}, a friendly reminder from Sakanly: rent for ${monthLabel(month)} (Flat ${r.unit}${r.space ? ` ${r.space}` : ''}) has AED ${r.balance.toLocaleString()} outstanding. Thank you!\nمرحباً ${r.tenant}، تذكير من سكنلي بأن المتبقي من إيجار ${monthLabel(month)} هو ${r.balance.toLocaleString()} درهم. شكراً لك!`;
+    const m = monthLabel(r.month);
+    const msg = `Hi ${r.tenant}, a friendly reminder from Sakanly: rent for ${m} (Flat ${r.unit}${r.space ? ` ${r.space}` : ''}) has AED ${r.balance.toLocaleString()} outstanding. Thank you!\nمرحباً ${r.tenant}، تذكير من سكنلي بأن المتبقي من إيجار ${m} هو ${r.balance.toLocaleString()} درهم. شكراً لك!`;
     return `https://wa.me/${(r.phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`;
   };
 
   return (
     <>
       <div className="toolbar">
-        <MonthPicker value={month} onChange={setMonth} />
-        <Tabs value={show} onChange={setShow} items={[['unpaid', 'Not fully paid'], ['all', 'Everyone']]} />
+        <Tabs value={period} onChange={setPeriod} items={[['month', 'Month'], ['range', 'Date range']]} />
+        {range ? (
+          <div className="row date-range">
+            <input className="input input-sm" type="date" value={from} max={to} onChange={e => e.target.value && setFrom(e.target.value)} aria-label="From" />
+            <span className="small muted">to</span>
+            <input className="input input-sm" type="date" value={to} min={from} onChange={e => e.target.value && setTo(e.target.value)} aria-label="To" />
+          </div>
+        ) : <MonthPicker value={month} onChange={setMonth} />}
+      </div>
+      <div className="toolbar">
+        <Tabs value={show} onChange={setShow} items={[['unpaid', 'Not fully paid'], ['OVERDUE', `Overdue${overdue.length ? ` (${overdue.length})` : ''}`], ['PAID', 'Paid'], ['all', 'Everyone']]} />
+        <input className="input input-sm" placeholder="Search tenant, phone, partition" value={q} onChange={e => setQ(e.target.value)} style={{ width: 220 }} />
         <div className="grow" />
-        <button className="btn" onClick={() => downloadCsv(`rent-collection-${month}.csv`, data.rows.map(r => ({
-          Building: r.building, Flat: r.unit, Partition: r.space || '', Tenant: r.tenant, Phone: r.phone || '', Due: r.due, Collected: r.collected, Balance: r.balance, Status: L.rentStatus[r.status],
+        <button className="btn" onClick={() => downloadCsv(`rent-collection-${fileTag}.csv`, rows.map(r => ({
+          Month: r.month, 'Due date': r.dueDate?.slice(0, 10), Building: r.building, Flat: r.unit, Partition: r.space || '', Tenant: r.tenant, Phone: r.phone || '', Due: r.due, Collected: r.collected, Balance: r.balance, Status: L.rentStatus[r.status],
         })))}>Export</button>
       </div>
       <div className="grid g4" style={{ marginBottom: 16 }}>
-        <Stat label="Rent due" value={money(data.totals.due)} sub={`${data.rows.length} monthly tenancies`} />
+        <Stat label="Rent due" value={money(data.totals.due)} sub={range ? `${all.length} instalments · ${periodText}` : `${all.length} monthly tenancies`} />
         <Stat label="Collected" value={money(data.totals.collected)} progress={data.totals.due ? data.totals.collected / data.totals.due : 0} />
         <Stat accent label="Outstanding" value={money(data.totals.outstanding)} />
-        <Stat label="Fully paid" value={`${paidCount} / ${data.rows.length}`} />
+        <Stat label="Fully paid" value={`${paidCount} / ${all.length}`} sub={overdue.length ? `${overdue.length} overdue` : undefined} />
       </div>
 
-      {rows.length === 0 ? <Empty icon="✓" title={show === 'unpaid' ? 'Everyone has paid' : 'No monthly tenancies'}>{show === 'unpaid' ? `All rent for ${monthLabel(month)} is collected.` : ''}</Empty> :
+      {rows.length === 0 ? (q ? <Empty icon="🔍" title="No matches">Nothing matches “{q}”.</Empty>
+        : <Empty icon="✓" title={show === 'unpaid' || show === 'OVERDUE' ? 'Nothing outstanding' : 'Nothing to show'}>{show === 'unpaid' || show === 'OVERDUE' ? `All rent for ${periodText} is collected.` : `No rent ${show === 'PAID' ? 'fully paid' : 'due'} for ${periodText}.`}</Empty>) :
         Object.entries(groups).map(([g, list]) => (
           <div key={g} className="card card-flush" style={{ marginBottom: 14 }}>
             <div className="card-head"><div className="card-title">{g}</div><span className="small muted">{money(list.reduce((s, r) => s + r.balance, 0))} outstanding</span></div>
             <div className="table-wrap">
               <table className="table">
-                <thead><tr><th>Partition</th><th>Tenant</th><th>Due date</th><th className="num">Rent</th><th className="num">Paid</th><th className="num">Balance</th><th>Status</th><th></th></tr></thead>
+                <thead><tr><th>Partition</th><th>Tenant</th>{range && <th>Month</th>}<th>Due date</th><th className="num">Rent</th><th className="num">Paid</th><th className="num">Balance</th><th>Status</th><th></th></tr></thead>
                 <tbody>
                   {list.map(r => (
-                    <tr key={r.leaseId}>
+                    <tr key={`${r.leaseId}-${r.month}`}>
                       <td className="bold">{r.space || 'Whole flat'}</td>
                       <td>{r.tenant}<div className="tiny faint">{r.phone}</div></td>
+                      {range && <td className="small nowrap">{monthLabel(r.month)}</td>}
                       <td className="small">{date(r.dueDate)}</td>
                       <td className="num">{money(r.due)}</td><td className="num">{money(r.collected)}</td>
                       <td className="num bold">{r.balance ? money(r.balance) : '—'}</td>
@@ -73,7 +103,7 @@ export default function RentPage() {
 
       {pay && (
         <FormModal title={`Rent from ${pay.tenant}`}
-          intro={<p className="small muted" style={{ marginBottom: 12 }}>{pay.building} Flat {pay.unit}{pay.space ? ` · ${pay.space}` : ''} — {monthLabel(month)}</p>}
+          intro={<p className="small muted" style={{ marginBottom: 12 }}>{pay.building} Flat {pay.unit}{pay.space ? ` · ${pay.space}` : ''} — rent for {monthLabel(pay.month)}</p>}
           fields={[
             { name: 'amount', label: 'Amount (AED)', type: 'number', required: true, default: pay.balance },
             { name: 'date', label: 'Date received', type: 'date', required: true, default: today() },
@@ -82,7 +112,7 @@ export default function RentPage() {
           ]}
           onClose={() => setPay(null)}
           onSubmit={async v => {
-            await api.post('/transactions', { ...v, type: 'INCOME', category: 'RENT', description: v.amount < pay.balance ? 'Rent (part payment)' : 'Rent collection', leaseId: pay.leaseId, periodMonth: month });
+            await api.post('/transactions', { ...v, type: 'INCOME', category: 'RENT', description: v.amount < pay.balance ? 'Rent (part payment)' : 'Rent collection', leaseId: pay.leaseId, periodMonth: pay.month });
             toast('Payment recorded'); setPay(null); refetch();
           }} />
       )}

@@ -1,13 +1,15 @@
 // frontend/src/pages/DashboardPage.jsx
 import { Link } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
+import { useScope } from '../lib/scope';
 import { useApi, useSticky } from '../lib/hooks';
 import { money, pct, shortDate, monthKey, monthLabel, daysUntil, L, unitName, num } from '../lib/format';
 import { Stat, Spinner, ErrorBox, MonthPicker, Badge } from '../components/ui';
 
 export default function DashboardPage() {
   const [month, setMonth] = useSticky('dash_month', monthKey());
-  const { data: d, loading, error, refetch } = useApi(`/dashboard?month=${month}`);
+  const { scoped } = useScope();
+  const { data: d, loading, error, refetch } = useApi(scoped('/dashboard', { month }));
   if (error) return <ErrorBox error={error} retry={refetch} />;
   if (loading && !d) return <Spinner />;
 

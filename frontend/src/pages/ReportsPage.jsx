@@ -1,4 +1,5 @@
 // frontend/src/pages/ReportsPage.jsx — monthly P&L and profit per apartment
+import { useScope } from '../lib/scope';
 import { useApi, useSticky } from '../lib/hooks';
 import { money, pct, L, monthKey, monthLabel, downloadCsv } from '../lib/format';
 import { Spinner, ErrorBox, MonthPicker, Stat, Tabs, Badge } from '../components/ui';
@@ -6,8 +7,9 @@ import { Spinner, ErrorBox, MonthPicker, Stat, Tabs, Badge } from '../components
 export default function ReportsPage() {
   const [month, setMonth] = useSticky('rep_month', monthKey());
   const [tab, setTab] = useSticky('rep_tab', 'pnl');
-  const pnl = useApi(`/reports/pnl?month=${month}`);
-  const units = useApi(`/reports/units?month=${month}`);
+  const { scoped } = useScope();
+  const pnl = useApi(scoped('/reports/pnl', { month }));
+  const units = useApi(scoped('/reports/units', { month }));
   const err = pnl.error || units.error;
   if (err) return <ErrorBox error={err} retry={() => { pnl.refetch(); units.refetch(); }} />;
 

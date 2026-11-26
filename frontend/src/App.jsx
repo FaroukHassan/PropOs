@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from './lib/auth';
 import { ToastProvider } from './components/ui';
 import { initials, L } from './lib/format';
 import { useMobileTables } from './lib/mobileTables';
+import { ScopeProvider, ScopePicker } from './lib/scope';
 
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
@@ -30,6 +31,8 @@ const NAV = [
   ['Operations', [['/maintenance', '⚒', 'Maintenance'], ['/import', '⇪', 'Import from sheets'], ['/settings', '⚙', 'Settings']]],
 ];
 const TITLES = Object.fromEntries(NAV.flatMap(([, items]) => items.map(([to, , label]) => [to, label])));
+// Screens the apartment filter doesn't apply to
+const NO_SCOPE = ['/landlords', '/import', '/settings'];
 // Phone bottom bar: the four screens the team opens most; everything else is under "More".
 const TABBAR = [['/dashboard', '◧', 'Home'], ['/partitions', '▦', 'Partitions'], ['/rent', '✓', 'Rent'], ['/cheques', '✎', 'Cheques']];
 
@@ -70,6 +73,7 @@ function Shell() {
   if (!user) return <Navigate to="/login" replace />;
   const title = TITLES[pathname] || (pathname.startsWith('/units/') ? 'Apartment' : 'PropOS');
   return (
+    <ScopeProvider>
     <div className="app">
       <Sidebar open={menu} onNavigate={() => setMenu(false)} />
       {menu && <div className="sidebar-backdrop" onClick={() => setMenu(false)} />}
@@ -79,7 +83,10 @@ function Shell() {
             <button className="btn btn-sm menu-btn" onClick={() => setMenu(m => !m)} aria-label="Menu">☰</button>
             <h1 className="page-title">{title}</h1>
           </div>
-          <span className="small faint topbar-date">{new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span>
+          <div className="row topbar-right">
+            {!NO_SCOPE.includes(pathname) && !pathname.startsWith('/units/') && <ScopePicker />}
+            <span className="small faint topbar-date">{new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}</span>
+          </div>
         </header>
         {import.meta.env.VITE_DEMO && <div className="alert alert-info" style={{ margin: 0, borderRadius: 0, textAlign: 'center' }}>Demo with sample data. Click around freely; changes are not saved. Sample month: November 2026.</div>}
         <main className="content">
@@ -109,6 +116,7 @@ function Shell() {
         </nav>
       </div>
     </div>
+    </ScopeProvider>
   );
 }
 

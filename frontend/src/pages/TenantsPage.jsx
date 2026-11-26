@@ -1,5 +1,6 @@
 // frontend/src/pages/TenantsPage.jsx
 import { useState } from 'react';
+import { useScope } from '../lib/scope';
 import { useApi } from '../lib/hooks';
 import { api, qs } from '../lib/api';
 import { useAuth } from '../lib/auth';
@@ -12,7 +13,8 @@ export default function TenantsPage() {
   const toast = useToast();
   const [q, setQ] = useState('');
   const [show, setShow] = useState('current');
-  const { data, loading, error, refetch } = useApi(`/tenants${qs({ q })}`);
+  const { scoped } = useScope();
+  const { data, loading, error, refetch } = useApi(scoped('/tenants', { q }));
   const [modal, setModal] = useState(null);
   const [open, setOpen] = useState(null);
 

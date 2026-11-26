@@ -79,6 +79,20 @@ button { font-family: inherit; }
 .btn.menu-btn { display: none; }
 .page-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tabbar, .sidebar-backdrop { display: none; }
+.topbar-right { gap: 14px; min-width: 0; }
+
+/* App-wide apartment filter (top bar) */
+.scope-picker { position: relative; display: inline-flex; align-items: center; border: 1px solid var(--line-2); border-radius: var(--radius); background: var(--bg); min-width: 0; max-width: 260px; }
+.scope-picker .scope-icon { padding-left: 10px; color: var(--text-3); font-size: 14px; }
+.scope-picker select { appearance: none; -webkit-appearance: none; border: none; background: transparent; font: inherit; font-size: 13px; font-weight: 500; color: var(--text); padding: 7px 28px 7px 6px; min-width: 0; max-width: 100%; text-overflow: ellipsis; cursor: pointer; outline: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--text-3) 50%), linear-gradient(135deg, var(--text-3) 50%, transparent 50%);
+  background-position: calc(100% - 14px) 50%, calc(100% - 9px) 50%; background-size: 5px 5px; background-repeat: no-repeat; }
+.scope-picker.on { background: var(--sand-bg); border-color: var(--sand); }
+.scope-picker.on .scope-icon { color: #8a6a35; }
+.scope-picker.on select { padding-right: 6px; background-image: none; font-weight: 600; }
+.scope-clear { border: none; background: none; color: #8a6a35; cursor: pointer; padding: 4px 10px 4px 2px; font-size: 13px; }
+.date-range { gap: 6px; }
+.date-range .input { width: auto; }
 
 /* ─── Buttons & inputs ───────────────────────────────────────────────────── */
 .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: var(--radius); font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid var(--line-2); background: var(--bg); color: var(--text); transition: background .12s, border-color .12s; white-space: nowrap; text-decoration: none; }
@@ -247,6 +261,12 @@ table.table { width: 100%; border-collapse: collapse; font-size: 13px; }
   .btn.menu-btn { display: none; }
   .topbar { padding: 0 16px; height: 52px; padding-top: env(safe-area-inset-top); height: calc(52px + env(safe-area-inset-top)); }
   .topbar-date { display: none; }
+  .topbar { gap: 10px; }
+  .topbar-right { flex-shrink: 1; max-width: 58%; }
+  .scope-picker { max-width: 100%; }
+  .scope-picker select { font-size: 16px; padding-top: 6px; padding-bottom: 6px; }
+  .date-range { flex: 1 1 100%; }
+  .date-range .input { flex: 1; min-width: 0; }
   .page-title { font-size: 18px; }
   .content { padding: 14px 12px calc(76px + env(safe-area-inset-bottom)); }
   .tabbar { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 85; background: var(--bg); border-top: 1px solid var(--line); padding: 4px 4px env(safe-area-inset-bottom); box-shadow: 0 -2px 12px rgba(16, 30, 55, .06); }

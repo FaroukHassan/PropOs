@@ -1,5 +1,6 @@
 // frontend/src/pages/MaintenancePage.jsx
 import { useState } from 'react';
+import { useScope } from '../lib/scope';
 import { useApi, useSticky } from '../lib/hooks';
 import { api, qs } from '../lib/api';
 import { useAuth } from '../lib/auth';
@@ -11,7 +12,8 @@ export default function MaintenancePage() {
   const { can } = useAuth();
   const toast = useToast();
   const [status, setStatus] = useSticky('maint_status', 'OPEN_ALL');
-  const { data, loading, error, refetch } = useApi(`/maintenance${qs({ status: status === 'OPEN_ALL' ? '' : status })}`);
+  const { scoped } = useScope();
+  const { data, loading, error, refetch } = useApi(scoped('/maintenance', { status: status === 'OPEN_ALL' ? '' : status }));
   const units = useApi('/units');
   const [modal, setModal] = useState(null);
   if (error) return <ErrorBox error={error} retry={refetch} />;

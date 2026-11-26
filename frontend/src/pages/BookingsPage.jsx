@@ -1,5 +1,6 @@
 // frontend/src/pages/BookingsPage.jsx — holiday-home calendar and bookings
 import { useState, useMemo } from 'react';
+import { useScope } from '../lib/scope';
 import { useApi, useSticky } from '../lib/hooks';
 import { api, qs } from '../lib/api';
 import { useAuth } from '../lib/auth';
@@ -17,7 +18,8 @@ export default function BookingsPage() {
   const from = `${month}-01`;
   const to = `${shiftMonth(month, 1)}-01`;
   const units = useApi('/units');
-  const { data, loading, error, refetch } = useApi(`/bookings${qs({ from, to })}`);
+  const { scoped, inScope } = useScope();
+  const { data, loading, error, refetch } = useApi(scoped('/bookings', { from, to }));
   const [modal, setModal] = useState(null);
 
   const days = useMemo(() => {
@@ -30,7 +32,7 @@ export default function BookingsPage() {
   if (error) return <ErrorBox error={error} retry={refetch} />;
   if ((loading && !data) || !units.data) return <Spinner />;
   // Bookable units: holiday flats (one row, or one row per partition) and partitions reserved for holiday use elsewhere
-  const homes = units.data.filter(u => u.mode === 'HOLIDAY' || u.spaces.some(s => s.status === 'RESERVED') || (data || []).some(b => b.unitId === u.id));
+  const homes = units.data.filter(inScope).filter(u => u.mode === 'HOLIDAY' || u.spaces.some(s => s.status === 'RESERVED') || (data || []).some(b => b.unitId === u.id));
   const rowsFor = h => {
     const spaces = h.mode === 'HOLIDAY' ? h.spaces : h.spaces.filter(s => s.status === 'RESERVED' || (data || []).some(b => b.spaceId === s.id));
     return spaces.length ? spaces.map(s => ({ key: s.id, label: `${h.building.name} ${h.number} · ${s.code}`, unit: h, space: s })) : [{ key: h.id, label: `${h.building.name} ${h.number}`, unit: h }];

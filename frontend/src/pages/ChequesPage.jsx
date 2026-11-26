@@ -1,6 +1,7 @@
 // frontend/src/pages/ChequesPage.jsx — cheque register. Colours follow the team's sheet:
 // yellow = paid, green = postponed, white = pending.
 import { useState, useMemo } from 'react';
+import { useScope } from '../lib/scope';
 import { useApi, useSticky } from '../lib/hooks';
 import { api, qs } from '../lib/api';
 import { useAuth } from '../lib/auth';
@@ -16,8 +17,8 @@ export default function ChequesPage() {
   const toast = useToast();
   const [direction, setDirection] = useSticky('chq_dir', 'OUT');
   const [show, setShow] = useSticky('chq_show', 'open');
-  const [unitId, setUnitId] = useState('');
-  const { data, loading, error, refetch } = useApi(`/cheques${qs({ direction, unitId })}`);
+  const { scoped } = useScope();
+  const { data, loading, error, refetch } = useApi(scoped('/cheques', { direction }));
   const units = useApi('/units');
   const landlords = useApi('/landlords');
   const leases = useApi('/leases?active=1');
@@ -47,10 +48,6 @@ export default function ChequesPage() {
       <div className="toolbar">
         <Tabs value={direction} onChange={setDirection} items={[['OUT', 'Issued (to landlords)'], ['IN', 'Received (from tenants)']]} />
         <Tabs value={show} onChange={setShow} items={[['open', 'Open'], ['paid', 'Paid'], ['all', 'All']]} />
-        <select className="input input-sm" value={unitId} onChange={e => setUnitId(e.target.value)} aria-label="Apartment">
-          <option value="">All apartments</option>
-          {(units.data || []).map(u => <option key={u.id} value={u.id}>{unitName(u)}</option>)}
-        </select>
         <div className="grow" />
         <button className="btn" onClick={() => downloadCsv(`cheques-${direction === 'OUT' ? 'issued' : 'received'}.csv`, rows.map(c => ({
           Date: isoDay(c.dueDate), 'Postponed to': isoDay(c.postponedTo), Amount: c.amount, Number: c.number, Bank: c.bank || '', Apartment: c.unit ? unitName(c.unit) : '', Name: c.partyName || '', Status: L.chequeStatus[c.status], Notes: c.notes || '',
