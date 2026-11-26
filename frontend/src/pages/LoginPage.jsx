@@ -23,12 +23,12 @@ export default function LoginPage() {
         <div className="brand-name" style={{ fontSize: 22 }}>Sakanly <span>PropOS</span></div>
         <div>
           <h1>Every partition, booking and cheque. <em>One place.</em></h1>
-          <p style={{ color: '#aab4c9', marginTop: 14, maxWidth: 420 }}>
+          <p className="login-blurb" style={{ color: '#aab4c9', marginTop: 14, maxWidth: 420 }}>
             The operating system for Sakanly Stay Holiday Homes: partitions board, rent collection, holiday bookings, cheques and owner statements.
           </p>
           <p className="ar" dir="rtl" style={{ color: 'var(--sand)', marginTop: 18, fontSize: 18 }}>سكنلي — كأنك في بيتك</p>
         </div>
-        <div className="small" style={{ color: '#6f7c98' }}>Office 301, Warsan Building, Barsha Heights · Dubai</div>
+        <div className="small login-address" style={{ color: '#6f7c98' }}>Office 301, Warsan Building, Barsha Heights · Dubai</div>
       </div>
       <div className="login-form">
         <form onSubmit={submit}>
