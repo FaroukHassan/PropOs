@@ -6,7 +6,7 @@ name: Deploy website
 on:
   push:
     branches: [main]
-    paths: ['frontend/**', 'website/**', '.github/workflows/pages.yml']
+    paths: ['frontend/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -26,9 +26,6 @@ jobs:
         env:
           VITE_API_URL: ${{ vars.API_URL }}
           VITE_BASE: ${{ vars.SITE_BASE || '/' }}
-      # test copy of the sakanly.com website at crm.sakanly.com/preview/ (hidden from search engines)
-      - run: node ../website/build.mjs
-        env: { PREVIEW: /preview, OUT: dist/preview }
       - uses: actions/upload-pages-artifact@v3
         with: { path: frontend/dist }
   deploy:
