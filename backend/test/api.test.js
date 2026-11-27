@@ -675,3 +675,27 @@ test('leasing availability: free windows for a move-in date and 1–12 month sta
     assert.ok(r.freeForPeriod || r.freeUntil, 'free from its free date');
   }
 });
+
+test('tenancy rent change applies from a chosen month; earlier months keep the old rent', async () => {
+  const leases = (await call('GET', '/api/leases')).body.filter(l => l.status === 'ACTIVE' && l.rentPeriod === 'MONTHLY' && l.spaceId);
+  const l = leases.find(x => new Date(x.startDate) < new Date(Date.now() - 62 * 86400000)) || leases[0];
+  const now = new Date();
+  const key = m => { const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + m, 1)); return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`; };
+  const old = l.rent;
+  assert.equal((await call('PATCH', `/api/leases/${l.id}`, { rent: -5 })).status, 422);
+  assert.equal((await call('PATCH', `/api/leases/${l.id}`, { rent: old + 100, rentFrom: 'soon' })).status, 422);
+  const r = await call('PATCH', `/api/leases/${l.id}`, { rent: old + 100, rentFrom: key(0), dueDay: 3 });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.rent, old + 100);
+  assert.equal(r.body.dueDay, 3);
+  const row = async m => (await call('GET', `/api/reports/rent-collection?month=${key(m)}`)).body.rows?.find(x => x.leaseId === l.id)
+    || (await call('GET', `/api/reports/rent-collection?month=${key(m)}`)).body.find?.(x => x.leaseId === l.id);
+  const thisMonth = await row(0), lastMonth = await row(-1);
+  assert.equal(thisMonth.due, old + 100, 'new rent from the chosen month');
+  if (lastMonth) assert.equal(lastMonth.due, old, 'the month before keeps the old rent');
+  // a second change next month stacks on top
+  await call('PATCH', `/api/leases/${l.id}`, { rent: old + 250, rentFrom: key(1) });
+  assert.equal((await row(1)).due, old + 250);
+  assert.equal((await row(0)).due, old + 100);
+  if (lastMonth) assert.equal((await row(-1)).due, old);
+});

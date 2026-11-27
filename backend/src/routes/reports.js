@@ -9,6 +9,15 @@ const sum = (rows, f = r => r.amount) => rows.reduce((s, r) => s + (f(r) || 0), 
 const round = n => Math.round(n * 100) / 100;
 
 // Monthly leases that owe rent for the month, with what has been collected against them
+// The rent a tenancy owed for a month: rent changes apply from their month on
+function rentFor(l, key) {
+  const changes = Array.isArray(l.rentChanges) ? [...l.rentChanges].sort((a, b) => a.from.localeCompare(b.from)) : [];
+  if (!changes.length) return l.rent;
+  let rent = changes[0].previous ?? l.rent;
+  for (const c of changes) if (c.from <= key) rent = c.rent;
+  return rent;
+}
+
 async function rentCollection(orgId, key, q = {}) {
   const { start, end } = monthRange(key);
   const leases = await prisma.lease.findMany({
@@ -31,7 +40,7 @@ async function rentCollection(orgId, key, q = {}) {
     .filter(l => l.status !== 'ENDED' || (l.endDate && l.endDate >= start))
     .map(l => {
       const collected = paidBy[l.id] || 0;
-      const due = l.rent;
+      const due = rentFor(l, key);
       // never due before the tenant moved in
       const nominal = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), l.dueDay));
       const dueDate = l.startDate > nominal ? l.startDate : nominal;

@@ -1,5 +1,13 @@
 // frontend/src/lib/ar.js — Arabic text for every English string on screen (see i18n.js)
 export default {
+  'Rent changes': 'تغييرات الإيجار',
+  'Edit tenancy': 'تعديل الإيجار',
+  'Edit tenancy — {0}': 'تعديل الإيجار — {0}',
+  'A new rent applies from the month you choose. Months before it keep the old rent, so payments already recorded stay correct.': 'الإيجار الجديد يُطبّق من الشهر اللي تختاره. الشهور اللي قبله بتفضل بالإيجار القديم، فالمدفوعات المسجلة تفضل مظبوطة.',
+  'New rent starts from': 'الإيجار الجديد يبدأ من',
+  'Only used when the rent changes': 'يُستخدم فقط لو الإيجار اتغير',
+  'Tenancy ends on': 'نهاية الإيجار',
+  'Leave empty for a monthly tenancy with no end date': 'سيبه فاضي لو الإيجار شهري من غير تاريخ نهاية',
   'Availability': 'الإتاحة',
   'Stay': 'مدة الإقامة',
   '1 yr': 'سنة',

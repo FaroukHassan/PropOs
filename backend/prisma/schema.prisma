@@ -182,6 +182,7 @@ model Lease {
   endDate       DateTime?   // open-ended for monthly partitions
   rent          Float       // monthly rent for spaces; annual for LONG_TERM
   rentPeriod    RentPeriod  @default(MONTHLY)
+  rentChanges   Json?       // [{ from: "2026-12", rent: 1400, previous: 1300, at, by }] — past months keep the rent they had
   deposit       Float       @default(0)
   depositPaid   Float       @default(0)
   dueDay        Int         @default(1) // day of month rent is due

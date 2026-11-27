@@ -1,6 +1,7 @@
 // backend/src/routes/occupancy.js — tenants, leases (tenancies) and holiday bookings
 const express = require('express');
 const prisma = require('../db');
+const { Prisma } = require('@prisma/client');
 const { crudRouter, findOwned, coerce } = require('../lib/crud');
 const { ah, HttpError } = require('../middleware/errorHandler');
 const { nights, startOfDay, periodFrom } = require('../lib/dates');
@@ -48,6 +49,23 @@ leases.get('/', ah(async (req, res) => {
   }));
 }));
 
+// A new rent on a running tenancy starts from a chosen month (default: this month); the months
+// before keep the rent they had, so past rent collection doesn't change.
+const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
+const monthOf = d => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
+function rentChange(existing, rent, rentFrom, user) {
+  const now = new Date();
+  const from = rentFrom || monthOf(now);
+  if (!MONTH.test(from)) throw new HttpError(422, 'Choose the month the new rent starts');
+  const list = (Array.isArray(existing.rentChanges) ? [...existing.rentChanges] : []).sort((x, y) => x.from.localeCompare(y.from));
+  const base = list.length ? list[0].previous : existing.rent; // the rent before any change
+  const kept = list.filter(c => c.from < from); // a new change replaces any from the same month on
+  // from the very first month: the tenancy simply has this rent
+  const changes = from <= monthOf(existing.startDate) ? []
+    : [...kept, { from, rent, previous: kept.length ? kept[kept.length - 1].rent : base, at: now.toISOString(), by: user?.name || user?.email || null }];
+  return changes.length ? changes : Prisma.DbNull;
+}
+
 crudRouter({
   router: leases,
   model: 'lease',
@@ -79,6 +97,10 @@ crudRouter({
         if (clash) throw new HttpError(409, `${space.code} is already occupied by ${clash.tenant.name}. End that tenancy first.`);
       }
     }
+    if (existing && data.rent !== undefined && data.rent !== null) {
+      if (!(data.rent > 0)) throw new HttpError(422, 'Rent must be more than 0');
+      if (data.rent !== existing.rent) data.rentChanges = rentChange(existing, data.rent, req.body.rentFrom, req.user);
+    }
     if (data.dueDay !== undefined && data.dueDay !== null && (data.dueDay < 1 || data.dueDay > 28)) {
       throw new HttpError(422, 'Rent due day must be between 1 and 28');
     }
@@ -91,6 +113,7 @@ crudRouter({
 });
 
 // End a tenancy: sets end date, frees the space, optionally records the deposit refund
+
 leases.post('/:id/end', ah(async (req, res) => {
   const lease = await findOwned('lease', req.params.id, req.user.orgId);
   const endDate = coerce('date', req.body.endDate, 'endDate') || startOfDay();

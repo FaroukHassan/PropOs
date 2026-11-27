@@ -6,7 +6,7 @@ import { useScope } from '../lib/scope';
 import { useApi, useSticky } from '../lib/hooks';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
-import { money, date, L, today, isoDay, monthKey, roomName } from '../lib/format';
+import { money, date, L, today, isoDay, monthKey, roomName, monthLabel } from '../lib/format';
 import { spaceFields, leaseFields, transactionFields } from '../lib/forms';
 import { Spinner, ErrorBox, Empty, Drawer, FormModal, Badge, Tabs, Modal, useToast } from '../components/ui';
 import PhotoManager, { PhotoCount } from '../components/PhotoManager';
@@ -147,7 +147,7 @@ export default function PartitionsPage() {
           onSubmit={async v => { await api.post('/spaces', { ...v, unitId: modal.unit.id }); toast(t("Room added")); setModal(null); reload(); }} />
       )}
       {modal?.kind === 'editSpace' && (
-        <FormModal title={t("Edit {0}", [modal.space.code])} fields={spaceFields.map(f => f.name === 'status' && modal.space.status === 'OCCUPIED' ? { ...f, options: Object.entries(L.spaceStatus).map(([value, label]) => ({ value, label })) } : f)}
+        <FormModal title={t("Edit {0}", [roomName(modal.space.code)])} fields={spaceFields.map(f => f.name === 'status' && modal.space.status === 'OCCUPIED' ? { ...f, options: Object.entries(L.spaceStatus).map(([value, label]) => ({ value, label })) } : f)}
           initial={{ ...modal.space, availableFrom: isoDay(modal.space.availableFrom) }} onClose={() => setModal(null)}
           onDelete={modal.space.lease ? undefined : async () => { await api.del(`/spaces/${modal.space.id}`); toast(t("Removed")); setModal(null); setOpen(null); reload(); }}
           onSubmit={async v => { await api.patch(`/spaces/${modal.space.id}`, v); toast(t("Saved")); setModal(null); setOpen(null); reload(); }} />
@@ -172,6 +172,21 @@ export default function PartitionsPage() {
           onClose={() => setModal(null)}
           onSubmit={async v => { await api.post('/transactions', { ...v, type: 'INCOME', leaseId: modal.space.lease.id }); toast(t("Payment recorded")); setModal(null); }} />
       )}
+      {modal?.kind === 'editLease' && (
+        <FormModal title={t("Edit tenancy — {0}", [modal.space.lease.tenant.name])}
+          intro={<p className="small muted" style={{ marginBottom: 12 }}>{t("A new rent applies from the month you choose. Months before it keep the old rent, so payments already recorded stay correct.")}</p>}
+          fields={[
+            { name: 'rent', label: t("Monthly rent (AED)"), type: 'number', required: true },
+            { name: 'rentFrom', label: t("New rent starts from"), type: 'month', default: monthKey(), hint: t("Only used when the rent changes") },
+            { name: 'dueDay', label: t("Rent due on day"), type: 'number', required: true },
+            { name: 'deposit', label: t("Security deposit (AED)"), type: 'number' },
+            { name: 'endDate', label: t("Tenancy ends on"), type: 'date', hint: t("Leave empty for a monthly tenancy with no end date") },
+            { name: 'notes', label: t("Notes"), type: 'textarea' },
+          ]}
+          initial={{ rent: modal.space.lease.rent, dueDay: modal.space.lease.dueDay, deposit: modal.space.lease.deposit, endDate: isoDay(modal.space.lease.endDate), notes: modal.space.lease.notes || '' }}
+          onClose={() => setModal(null)}
+          onSubmit={async v => { await api.patch(`/leases/${modal.space.lease.id}`, v); toast(t("Saved")); setModal(null); setOpen(null); reload(); }} />
+      )}
       {modal?.kind === 'moveOut' && (
         <FormModal title={t("Move out — {0}", [modal.space.lease.tenant.name])}
           intro={<p className="small muted" style={{ marginBottom: 12 }}>{t("Ends the tenancy and marks")} {modal.space.code} {t("as available. Deposit held:")} {money(modal.space.lease.depositPaid)}.</p>}
@@ -192,7 +207,7 @@ const num0 = n => money(Number(n || 0));
 function SpaceDrawer({ space, unit, building, onClose, onAction, canWrite }) {
   const lease = space.lease;
   return (
-    <Drawer title={t("Flat {0} · {1}", [unit.number, space.code])} subtitle={`${building.name} · ${L.spaceKind[space.kind]} · ${L.occupancy[unit.occupancy]}`} onClose={onClose}
+    <Drawer title={t("Flat {0} · {1}", [unit.number, roomName(space.code)])} subtitle={`${building.name} · ${L.spaceKind[space.kind]} · ${L.occupancy[unit.occupancy]}`} onClose={onClose}
       actions={canWrite && <button className="btn btn-sm" onClick={() => onAction('editSpace')}>{t("Edit")}</button>}>
       <div className="row" style={{ marginBottom: 16 }}><Badge value={space.status} map={L.spaceStatus} /></div>
       <dl className="kv">
@@ -212,13 +227,18 @@ function SpaceDrawer({ space, unit, building, onClose, onAction, canWrite }) {
             {lease.tenant.phone && <><dt>{t("Phone")}</dt><dd><a href={`https://wa.me/${lease.tenant.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" dir="ltr">{lease.tenant.phone}</a></dd></>}
             <dt>{t("Since")}</dt><dd>{date(lease.startDate)}</dd>
             {lease.endDate && <><dt>{t("Until")}</dt><dd>{date(lease.endDate)}</dd></>}
-            <dt>{t("Rent")}</dt><dd>{money(lease.rent)} {t("· due on day")} {lease.dueDay}</dd>
+            <dt>{t("Rent")}</dt><dd><b>{money(lease.rent)}</b> {t("· due on day")} {lease.dueDay}
+              {canWrite && <button className="btn btn-sm btn-ghost" style={{ marginInlineStart: 6, padding: '1px 8px' }} onClick={() => onAction('editLease')}>{t("Change")}</button>}</dd>
+            {Array.isArray(lease.rentChanges) && lease.rentChanges.length > 0 && <><dt>{t("Rent changes")}</dt><dd className="small">
+              {[...lease.rentChanges].sort((a, b) => a.from.localeCompare(b.from)).map(c => <div key={c.from}>{money(c.previous)} → <b>{money(c.rent)}</b> {t("from")} {monthLabel(c.from)}</div>)}
+            </dd></>}
             <dt>{t("Deposit held")}</dt><dd>{money(lease.depositPaid)} {t("of")} {money(lease.deposit)}</dd>
             {lease.broker && <><dt>{t("Broker")}</dt><dd>{lease.broker}</dd></>}
           </dl>
           {canWrite && (
             <div className="row wrap" style={{ marginTop: 16 }}>
               <button className="btn btn-primary" onClick={() => onAction('pay')}>{t("Record payment")}</button>
+              <button className="btn" onClick={() => onAction('editLease')}>{t("Edit tenancy")}</button>
               <button className="btn btn-danger" onClick={() => onAction('moveOut')}>{t("Move out")}</button>
             </div>
           )}
