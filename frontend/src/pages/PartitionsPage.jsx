@@ -6,7 +6,7 @@ import { useScope } from '../lib/scope';
 import { useApi, useSticky } from '../lib/hooks';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
-import { money, date, L, today, isoDay, monthKey, roomName, initials } from '../lib/format';
+import { money, date, L, today, isoDay, monthKey, roomName } from '../lib/format';
 import { spaceFields, leaseFields, transactionFields } from '../lib/forms';
 import { Spinner, ErrorBox, Empty, Drawer, FormModal, Badge, Tabs, Modal, useToast } from '../components/ui';
 import PhotoManager, { PhotoCount } from '../components/PhotoManager';
@@ -80,8 +80,8 @@ export default function PartitionsPage() {
         <button className="btn" onClick={copyList}>{t("Copy available list for WhatsApp")}</button>
       </div>
       <div className="legend" style={{ marginBottom: 18 }}>
-        <span><i className="dot-AVAILABLE" />{t("Available")}</span><span><i className="dot-OCCUPIED" />{t("Occupied")}</span>
-        <span><i className="dot-RESERVED" />{t("Reserved")}</span><span><i className="dot-NOT_READY" />{t("Not ready")}</span>
+        <span><i className="s-AVAILABLE" />{t("Available")}</span><span><i className="s-OCCUPIED" />{t("Occupied")}</span>
+        <span><i className="s-RESERVED" />{t("Reserved")}</span><span><i className="s-NOT_READY" />{t("Not ready")}</span>
         <span className="faint">{t("Occupancy")} {tx.spaces ? Math.round((tx.occupied / tx.spaces) * 100) : 0}%</span>
       </div>
 
@@ -98,47 +98,25 @@ export default function PartitionsPage() {
           <h2>{b.name} <span className="small faint">{b.area}</span></h2>
           <div className="board-units">
             {b.units.map(u => {
-              const total = (u.allSpaces || u.spaces).length;
-              const let_ = (u.allSpaces || u.spaces).filter(s => s.status === 'OCCUPIED').length;
+              const occupied = u.spaces.filter(s => s.status === 'OCCUPIED');
               return (
                 <div key={u.id} className="board-unit">
                   <div className="board-unit-head">
-                    <div className="bu-title">
-                      <Link to={`/units/${u.id}`} className="apt">{t("Flat")} {u.number}</Link>
-                      <Badge tone={u.occupancy === 'LADIES' ? 'violet' : ''}>{L.occupancy[u.occupancy]}</Badge>
-                    </div>
-                    <PhotoCount photos={u.photos} onClick={() => setPhotosOf({ unit: u })} />
+                    <div><Link to={`/units/${u.id}`} className="apt" style={{ textDecoration: 'none' }}>{t("Flat")} {u.number}</Link> <Badge tone={u.occupancy === 'LADIES' ? 'violet' : ''}>{L.occupancy[u.occupancy]}</Badge></div>
+                    <div className="row" style={{ gap: 8 }}><PhotoCount photos={u.photos} onClick={() => setPhotosOf({ unit: u })} /><span className="small muted">{filter === 'ALL' ? `${occupied.length}/${u.spaces.length}` : ''}</span></div>
                   </div>
-                  <div className="bu-occ">
-                    <div className="bu-bar"><i style={{ width: `${total ? (let_ / total) * 100 : 0}%` }} /></div>
-                    <span>{t("{0} of {1} rooms let", [let_, total])}</span>
-                  </div>
-                  <div className="rooms">
-                    {u.spaces.map(s => {
-                      const tenant = s.lease?.tenant?.name;
-                      const free = s.status === 'AVAILABLE' || s.status === 'RESERVED';
-                      const ready = !s.availableFrom || isoDay(s.availableFrom) <= today();
-                      return (
-                        <button key={s.id} className={`room-tile st-${s.status}`} onClick={() => setOpen({ space: s, unit: u, building: b })} title={s.amenities || ''}>
-                          <div className="rt-top">
-                            <span className="rt-name">{s.kind === 'BED' && <BedIcon />}{roomName(s.code)}</span>
-                            <span className="rt-status">{L.spaceStatus[s.status]}</span>
-                          </div>
-                          <div className="rt-who">
-                            {tenant
-                              ? <><span className="rt-av">{initials(tenant)}</span><span className="rt-tenant">{tenant}</span></>
-                              : <span className="rt-note">{free ? (ready ? t("Ready to move in") : `${t("From")} ${date(s.availableFrom)}`) : t("Being prepared")}</span>}
-                          </div>
-                          <div className="rt-foot">
-                            <span className="rt-price">{num0(s.lease ? s.lease.rent : s.monthlyRate)}<small>{t("/mo")}</small></span>
-                            {s.lease?.endDate && <span className="rt-until">{t("until")} {date(s.lease.endDate)}</span>}
-                          </div>
-                        </button>
-                      );
-                    })}
+                  <div className="spaces">
+                    {u.spaces.map(s => (
+                      <button key={s.id} className={`space s-${s.status}`} onClick={() => setOpen({ space: s, unit: u, building: b })} title={s.amenities || ''}>
+                        <div className="code">{roomName(s.code)}</div>
+                        <div className="who">{s.lease ? s.lease.tenant.name : L.spaceStatus[s.status]}</div>
+                        <div className="price">{num0(s.lease ? s.lease.rent : s.monthlyRate)}</div>
+                      </button>
+                    ))}
                     {can.write && filter === 'ALL' && (
-                      <button className="room-tile rt-add" onClick={() => setModal({ kind: 'addSpace', unit: u })}>
-                        <span className="rt-plus">+</span><span>{t("Add room / bed")}</span>
+                      <button className="space" style={{ borderStyle: 'dashed', borderColor: 'var(--line-2)', color: 'var(--text-3)' }}
+                        onClick={() => setModal({ kind: 'addSpace', unit: u })}>
+                        <div className="code">{t("+ Add")}</div><div className="who">{t("room / bed")}</div>
                       </button>
                     )}
                   </div>
@@ -285,6 +263,3 @@ function AvailableGallery({ buildings, filter, onOpen }) {
   );
 }
 
-function BedIcon() {
-  return <svg className="rt-bed" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden><path d="M3 18V7M3 13h18v5M21 13a3 3 0 0 0-3-3h-7v3M7 11.5a1.5 1.5 0 1 0 0-.01" /></svg>;
-}
