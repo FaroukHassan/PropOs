@@ -192,4 +192,41 @@ router.post('/:id/payments', ah(async (req, res) => {
   res.status(201).json(tx);
 }));
 
+// Bulk-load past deals (super admin). Each deal's payments are matched to lines already in the
+// ledger (same day, amount, direction and description) and linked, never duplicated.
+// Running it again updates the same deal numbers.
+router.post('/import', ah(async (req, res) => {
+  if (req.user.role !== 'ADMIN') throw new HttpError(403, 'Only a super admin can import deals');
+  const list = Array.isArray(req.body.deals) ? req.body.deals : [];
+  if (!list.length || list.length > 500) throw new HttpError(422, 'Send between 1 and 500 deals');
+  const orgId = req.user.orgId;
+  const report = { created: 0, updated: 0, linked: 0, alreadyLinked: 0, unmatched: [] };
+  for (const raw of list) {
+    const number = Number(raw.number);
+    if (!Number.isInteger(number) || number < 1) throw new HttpError(422, `Bad deal number ${raw.number}`);
+    const data = await pick(SPEC, { ...raw, clientName: raw.clientName || `Deal ${number}` }, orgId);
+    for (const f of ['signedAt', 'closedAt']) data[f] = raw[f] ? new Date(raw[f]) : null;
+    const existing = await prisma.leasingDeal.findFirst({ where: { orgId, number }, select: { id: true } });
+    const deal = existing
+      ? await prisma.leasingDeal.update({ where: { id: existing.id }, data })
+      : await prisma.leasingDeal.create({ data: { ...data, number, orgId } });
+    report[existing ? 'updated' : 'created']++;
+    const used = [];
+    for (const p of raw.payments || []) {
+      const day = new Date(`${String(p.date).slice(0, 10)}T00:00:00.000Z`);
+      const next = new Date(day.getTime() + 864e5);
+      const amount = Number(p.amount);
+      const base = { orgId, type: p.type === 'EXPENSE' ? 'EXPENSE' : 'INCOME', date: { gte: day, lt: next }, amount: { gte: amount - 0.01, lte: amount + 0.01 } };
+      const fresh = { id: { notIn: used } };
+      const already = await prisma.transaction.findFirst({ where: { ...base, ...fresh, dealId: deal.id }, select: { id: true } });
+      if (already) { used.push(already.id); report.alreadyLinked++; continue; }
+      const match = await prisma.transaction.findFirst({ where: { ...base, ...fresh, dealId: null, description: { startsWith: String(p.description || '').slice(0, 40).trim() } }, orderBy: { createdAt: 'asc' }, select: { id: true } })
+        || await prisma.transaction.findFirst({ where: { ...base, ...fresh, dealId: null }, orderBy: { createdAt: 'asc' }, select: { id: true } });
+      if (match) { used.push(match.id); await prisma.transaction.update({ where: { id: match.id }, data: { dealId: deal.id } }); report.linked++; }
+      else report.unmatched.push({ deal: number, ...p });
+    }
+  }
+  res.json(report);
+}));
+
 module.exports = router;

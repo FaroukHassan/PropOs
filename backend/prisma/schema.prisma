@@ -34,6 +34,8 @@ model Org {
   cheques     Cheque[]
   maintenance MaintenanceRequest[]
   deals       LeasingDeal[]
+  contracts   Contract[]
+  documents   TenantDocument[]
   createdAt   DateTime      @default(now())
 }
 
@@ -146,8 +148,14 @@ model Tenant {
   email       String?
   nationality String?
   idNumber    String?
+  secondPhone       String?
+  emergencyName     String?
+  emergencyPhone    String?
+  emergencyRelation String?
   notes       String?
   leases      Lease[]
+  contracts   Contract[]
+  documents   TenantDocument[]
   createdAt   DateTime  @default(now())
 }
 
@@ -175,7 +183,72 @@ model Lease {
   notes         String?
   transactions  Transaction[]
   cheques       Cheque[]
+  contracts     Contract[]
   createdAt     DateTime    @default(now())
+}
+
+// A sub-lease contract between Sakanly and a tenant, signed on screen or uploaded as a signed scan
+model Contract {
+  id               String         @id @default(uuid())
+  orgId            String
+  org              Org            @relation(fields: [orgId], references: [id])
+  number           String         // SL-2026-0001
+  tenantId         String
+  tenant           Tenant         @relation(fields: [tenantId], references: [id])
+  leaseId          String?
+  lease            Lease?         @relation(fields: [leaseId], references: [id])
+  status           ContractStatus @default(DRAFT)
+  terms            Json           // snapshot of parties, premises and money at the time it was drawn up
+  signToken        String         @unique
+  companySignature String?        // PNG data URL
+  companySignedBy  String?
+  companySignedAt  DateTime?
+  tenantSignature  String?
+  tenantSignedName String?
+  tenantSignedAt   DateTime?
+  tenantSignedIp   String?
+  scan             Bytes?         // signed paper copy, uploaded as a PDF
+  scanName         String?
+  scanUploadedAt   DateTime?
+  createdById      String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@unique([orgId, number])
+  @@index([tenantId])
+}
+
+// Files kept in a tenant's file: Emirates ID, passport, visa…
+model TenantDocument {
+  id         String       @id @default(uuid())
+  orgId      String
+  org        Org          @relation(fields: [orgId], references: [id])
+  tenantId   String
+  tenant     Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  kind       DocumentKind @default(OTHER)
+  fileName   String
+  mime       String
+  size       Int
+  data       Bytes
+  number     String?      // ID / passport number
+  expiresAt  DateTime?
+  uploadedBy String?
+  createdAt  DateTime     @default(now())
+
+  @@index([tenantId])
+}
+
+enum DocumentKind {
+  EMIRATES_ID
+  PASSPORT
+  VISA
+  OTHER
+}
+
+enum ContractStatus {
+  DRAFT
+  SIGNED
+  VOID
 }
 
 model Booking {

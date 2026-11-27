@@ -486,3 +486,19 @@ button.stat { font: inherit; text-align: start; color: inherit; width: 100%; }
   .perm-row > span:first-child { flex: 1 1 100%; }
   .perm-cell { flex: 1; justify-content: center; border-color: var(--line); }
 }
+
+/* ── Signatures, contracts, tenant file ── */
+.sigpad { border: 1px dashed var(--bg-4, #cbd5e1); border-radius: 10px; background: #fff; }
+.sigpad canvas { display: block; width: 100%; touch-action: none; cursor: crosshair; border-radius: 10px 10px 0 0; }
+.sigpad-foot { display: flex; justify-content: space-between; align-items: center; padding: 4px 8px; border-top: 1px solid var(--bg-3); }
+.contract-card { border: 1px solid var(--bg-3); border-radius: 10px; padding: 12px; margin-bottom: 10px; display: grid; gap: 10px; }
+.contract-steps { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--text-3); }
+.contract-steps .done { color: var(--green, #15803d); font-weight: 600; }
+.text-red { color: var(--red, #dc2626); }
+.btn-block { width: 100%; justify-content: center; }
+.sign-page { min-height: 100vh; background: var(--sand-bg); display: flex; flex-direction: column; }
+.sign-head { background: var(--navy); padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; }
+.sign-card { background: #fff; width: min(560px, calc(100% - 24px)); margin: 20px auto; padding: 22px; border-radius: 14px; box-shadow: 0 6px 24px rgba(16, 30, 55, .08); }
+.sign-done { text-align: center; margin-top: 22px; display: grid; gap: 8px; justify-items: center; }
+.sign-tick { width: 54px; height: 54px; border-radius: 50%; background: #dcfce7; color: #15803d; font-size: 28px; display: grid; place-items: center; }
+.sign-foot { text-align: center; color: var(--text-3); padding: 10px 0 24px; }

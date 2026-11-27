@@ -3,7 +3,9 @@
   "version": "2.0.0",
   "description": "PropOS API — Sakanly edition",
   "main": "src/index.js",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
@@ -22,6 +24,7 @@
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
+    "pdfkit": "^0.15.2",
     "pg": "^8.13.0",
     "prisma": "^6.19.0"
   }

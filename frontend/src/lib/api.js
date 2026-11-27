@@ -32,6 +32,39 @@ async function request(method, path, body) {
   return data;
 }
 
+// Fetch a file (PDF, photo) with the login token and open or save it
+async function fetchFile(path, auth = true) {
+  const token = tokenStore.get();
+  const res = await fetch(`${BASE}${path}`, { headers: auth && token ? { Authorization: `Bearer ${token}` } : {} });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `Request failed (${res.status})`);
+  }
+  return res.blob();
+}
+
+export async function openFile(path, fileName, { download = false, auth = true } = {}) {
+  // open the tab first so pop-up blockers allow it, then point it at the file
+  const win = download ? null : window.open('', '_blank');
+  try {
+    const url = URL.createObjectURL(await fetchFile(path, auth));
+    if (win) { win.location.href = url; } else {
+      const a = document.createElement('a');
+      a.href = url; a.download = fileName || 'file'; document.body.appendChild(a); a.click(); a.remove();
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (e) { if (win) win.close(); throw e; }
+}
+
+export const fileToBase64 = file => new Promise((resolve, reject) => {
+  const r = new FileReader();
+  r.onload = () => resolve(String(r.result).split(',')[1]);
+  r.onerror = () => reject(new Error('Could not read the file'));
+  r.readAsDataURL(file);
+});
+
+export const API_BASE = BASE;
+
 export const api = {
   get: path => request('GET', path),
   post: (path, body) => request('POST', path, body ?? {}),

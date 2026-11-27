@@ -12,6 +12,7 @@ import { PeriodProvider } from './lib/period';
 import { sectionOf, SECTIONS, pathOf } from './lib/access';
 
 import LoginPage from './pages/LoginPage';
+import SignPage from './pages/SignPage';
 import DashboardPage from './pages/DashboardPage';
 import PartitionsPage from './pages/PartitionsPage';
 import UnitsPage from './pages/UnitsPage';
@@ -155,6 +156,7 @@ export default function App() {
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/sign/:token" element={<SignPage />} />
           <Route path="/*" element={<Shell />} />
         </Routes>
       </AuthProvider>

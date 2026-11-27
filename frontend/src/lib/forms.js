@@ -58,10 +58,29 @@ export const spaceFields = [
 export const tenantFields = [
   { name: 'name', label: t("Full name"), required: true },
   { name: 'phone', label: t("Phone / WhatsApp"), placeholder: t("+971 5x xxx xxxx") },
+  { name: 'secondPhone', label: t("Second phone"), placeholder: t("+971 5x xxx xxxx") },
   { name: 'email', label: t("Email"), type: 'email' },
   { name: 'nationality', label: t("Nationality") },
   { name: 'idNumber', label: t("Emirates ID / passport no.") },
+  { name: 'emergencyName', label: t("Emergency contact name") },
+  { name: 'emergencyPhone', label: t("Emergency contact phone") },
+  { name: 'emergencyRelation', label: t("Relationship"), placeholder: t("e.g. brother, friend") },
   { name: 'notes', label: t("Notes"), type: 'textarea' },
+];
+
+// Draw up a sub-lease contract from a tenancy
+export const contractFields = leases => [
+  { name: 'leaseId', label: t("Tenancy"), type: 'select', required: true, options: leases.map(l => ({ value: l.id, label: `${l.unit.building.name} ${l.unit.number}${l.space ? ` · ${l.space.code}` : ''} · ${l.status}` })) },
+  { name: 'startDate', label: t("Start date"), type: 'date', hint: t("Leave blank to use the tenancy's dates") },
+  { name: 'endDate', label: t("End date"), type: 'date', hint: t("Blank = month to month") },
+  { name: 'rent', label: t("Rent (AED)"), type: 'number', hint: t("Blank = the tenancy's rent") },
+  { name: 'deposit', label: t("Security deposit (AED)"), type: 'number' },
+  { name: 'dueDay', label: t("Rent due on day"), type: 'number' },
+  { name: 'noticeDays', label: t("Notice period (days)"), type: 'number', default: 30 },
+  { name: 'includes', label: t("Rent includes (English)"), full: true, placeholder: 'electricity, water, air conditioning, internet and cleaning of the shared areas' },
+  { name: 'includesAr', label: t("Rent includes (Arabic)"), full: true, placeholder: 'الكهرباء والمياه والتكييف والإنترنت وتنظيف المرافق المشتركة' },
+  { name: 'specialTerms', label: t("Special terms (English)"), type: 'textarea' },
+  { name: 'specialTermsAr', label: t("Special terms (Arabic)"), type: 'textarea' },
 ];
 
 // Move a tenant into a partition (or a whole long-term unit)

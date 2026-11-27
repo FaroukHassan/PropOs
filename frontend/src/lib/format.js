@@ -47,6 +47,8 @@ export const L = {
   spaceKind: { PARTITION: 'Partition', BED: 'Bed', ROOM: 'Room', STUDIO: 'Studio' },
   spaceStatus: { AVAILABLE: 'Available', RESERVED: 'Reserved', OCCUPIED: 'Occupied', NOT_READY: 'Not ready' },
   leaseStatus: { ACTIVE: 'Active', NOTICE: 'Leaving (notice)', ENDED: 'Ended' },
+  contractStatus: { DRAFT: 'Awaiting signatures', SIGNED: 'Signed', VOID: 'Void' },
+  docKind: { EMIRATES_ID: 'Emirates ID', PASSPORT: 'Passport', VISA: 'Visa', OTHER: 'Other document' },
   rentPeriod: { MONTHLY: 'Per month', YEARLY: 'Per year' },
   channel: { AIRBNB: 'Airbnb', BOOKING: 'Booking.com', DIRECT: 'Direct', OTHER: 'Other' },
   bookingStatus: { INQUIRY: 'Inquiry', CONFIRMED: 'Confirmed', CHECKED_IN: 'Checked in', CHECKED_OUT: 'Checked out', CANCELLED: 'Cancelled' },
@@ -89,6 +91,7 @@ export const TONE = {
   INCOME: 'green', EXPENSE: 'red',
   LEAD: 'blue', VIEWING: 'violet', SIGNED: 'green',
   SHORT_TERM: 'sand', YEARLY: 'navy',
+  DRAFT: 'amber', VOID: 'red',
 };
 
 export const options = map => Object.entries(map).map(([value, label]) => ({ value, label }));

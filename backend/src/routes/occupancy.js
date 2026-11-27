@@ -12,12 +12,13 @@ const tenants = crudRouter({
   spec: {
     name: { type: 'string', required: true }, phone: 'string', email: 'string',
     nationality: 'string', idNumber: 'string', notes: 'string',
+    secondPhone: 'string', emergencyName: 'string', emergencyPhone: 'string', emergencyRelation: 'string',
   },
   include: {
     leases: { include: { unit: { include: { building: true } }, space: true }, orderBy: { startDate: 'desc' } },
   },
   orderBy: { name: 'asc' },
-  search: ['name', 'phone', 'email'],
+  search: ['name', 'phone', 'secondPhone', 'email'],
   // with the apartment filter on, show the people who have lived there
   scope: q => (isScoped(q) ? { leases: { some: unitScope(q) } } : {}),
 });

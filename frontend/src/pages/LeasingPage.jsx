@@ -71,6 +71,19 @@ export default function LeasingPage() {
           'Fee collected': d.money.feeCollected, 'Fee outstanding': d.money.feeOutstanding, 'Agent commission': d.agentCommission || '', 'Broker commission': d.brokerCommission || '',
           Signed: isoDay(d.signedAt), Notes: d.notes || '',
         })))}>{t('Export')}</button>
+        {can.admin && <label className="btn" title={t('Load past deals from a .json file prepared from your sheets')}>
+          {t('Import deals')}
+          <input type="file" accept="application/json,.json" hidden onChange={async e => {
+            const f = e.target.files[0]; e.target.value = '';
+            if (!f) return;
+            try {
+              const body = JSON.parse(await f.text());
+              const r = await api.post('/leasing/import', body);
+              toast(t('{0} new, {1} updated, {2} payments linked', [r.created, r.updated, r.linked + r.alreadyLinked]) + (r.unmatched.length ? ` · ${t('{0} payments not found in the ledger', [r.unmatched.length])}` : ''));
+              reload();
+            } catch (err) { toast(err.message, 'error'); }
+          }} />
+        </label>}
         {can.write && <button className="btn btn-primary" onClick={() => setModal({})}>{t('+ New deal')}</button>}
       </div>
 

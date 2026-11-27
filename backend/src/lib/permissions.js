@@ -52,6 +52,7 @@ function required(method, path, query = {}, body = {}) {
     if (method === 'POST' && body.category === 'MAINTENANCE') return { need, any: ['ledger', 'maintenance'] };
     return { need, any: ['ledger'] };
   }
+  if (is(/^\/(contracts|tenant-documents)/)) return { need, any: ['tenants', 'partitions', 'apartments'] };
   if (is(/^\/spaces\/board/)) return { need, any: ['partitions'] };
   if (read) return null; // shared lookups
   if (is(/^\/spaces/)) return { need, any: ['partitions', 'apartments'] };

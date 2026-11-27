@@ -24,11 +24,13 @@ app.use(cors({
   origin: (origin, cb) => cb(null, !origin || allowedOrigins.includes(origin) || allowedOrigins.includes('*')),
 }));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'tiny' : 'dev'));
-app.use(express.json({ limit: '5mb' }));
+app.use(express.json({ limit: '15mb' })); // signed contract scans are uploaded as base64
 
 app.get('/health', (req, res) => res.json({ status: 'ok', ts: new Date() }));
 
 app.use('/api/auth', require('./routes/auth'));
+const contracts = require('./routes/contracts');
+app.use('/api/public', contracts.pub); // tenant signing links, no login
 
 const api = express.Router();
 api.use(authenticate, writeGuard, authorize);
@@ -44,6 +46,8 @@ api.use('/cheques', money.cheques);
 api.use('/maintenance', money.maintenance);
 api.use('/import', require('./routes/import'));
 api.use('/leasing', require('./routes/leasing'));
+api.use('/contracts', contracts.router);
+api.use('/tenant-documents', require('./routes/documents'));
 api.use('/', require('./routes/reports'));
 app.use('/api', api);
 

@@ -8,6 +8,7 @@ import { useAuth } from '../lib/auth';
 import { money, date, L } from '../lib/format';
 import { tenantFields } from '../lib/forms';
 import { Spinner, ErrorBox, Empty, FormModal, Badge, Drawer, useToast } from '../components/ui';
+import { TenantDocuments, TenantContracts } from '../components/TenantFile';
 
 export default function TenantsPage() {
   const { can } = useAuth();
@@ -68,7 +69,9 @@ export default function TenantsPage() {
           actions={can.write && <button className="btn btn-sm" onClick={() => setModal({ tenant: open })}>{t("Edit")}</button>}>
           <dl className="kv">
             {open.phone && <><dt>{t("WhatsApp")}</dt><dd><a href={`https://wa.me/${open.phone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" dir="ltr">{open.phone}</a></dd></>}
-            {open.email && <><dt>{t("Email")}</dt><dd>{open.email}</dd></>}
+            {open.secondPhone && <><dt>{t("Second phone")}</dt><dd><a href={`tel:${open.secondPhone.replace(/[^\d+]/g, '')}`} dir="ltr">{open.secondPhone}</a></dd></>}
+            {open.email && <><dt>{t("Email")}</dt><dd><a href={`mailto:${open.email}`}>{open.email}</a></dd></>}
+            {(open.emergencyName || open.emergencyPhone) && <><dt>{t("Emergency contact")}</dt><dd>{open.emergencyName}{open.emergencyRelation && <span className="muted"> ({open.emergencyRelation})</span>}{open.emergencyPhone && <> · <a href={`tel:${open.emergencyPhone.replace(/[^\d+]/g, '')}`} dir="ltr">{open.emergencyPhone}</a></>}</dd></>}
             {open.nationality && <><dt>{t("Nationality")}</dt><dd>{open.nationality}</dd></>}
             {open.idNumber && <><dt>{t("ID no.")}</dt><dd>{open.idNumber}</dd></>}
             {open.notes && <><dt>{t("Notes")}</dt><dd style={{ whiteSpace: 'pre-wrap' }}>{open.notes}</dd></>}
@@ -82,6 +85,8 @@ export default function TenantsPage() {
               <div className="right"><div className="num">{money(l.rent)}</div><Badge value={l.status} map={L.leaseStatus} /></div>
             </div>
           ))}
+          <TenantDocuments key={`d-${open.id}`} tenant={open} onChanged={refetch} />
+          <TenantContracts key={`c-${open.id}`} tenant={open} />
         </Drawer>
       )}
 

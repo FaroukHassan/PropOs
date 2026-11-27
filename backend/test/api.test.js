@@ -417,3 +417,98 @@ test('permissions: super admin decides what each team member can see and change'
   assert.equal(reset.access.dashboard, 'edit');
   await call('DELETE', `/api/auth/users/${created.body.id}`);
 });
+
+test('tenant file: extra contact details, ID and passport uploads', async () => {
+  const lease = (await call('GET', '/api/leases?active=1')).body.find(l => l.spaceId);
+  const p = await call('PATCH', `/api/tenants/${lease.tenantId}`, { secondPhone: '+971 55 111 2222', emergencyName: 'Sara', emergencyPhone: '+971 50 999 8888', emergencyRelation: 'Sister', email: 'tenant@example.com' });
+  assert.equal(p.status, 200);
+  assert.equal(p.body.emergencyRelation, 'Sister');
+  const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+  const up = await call('POST', '/api/tenant-documents', { tenantId: lease.tenantId, kind: 'PASSPORT', fileName: 'passport.png', data: png, number: 'A1234567', expiresAt: '2030-01-01' });
+  assert.equal(up.status, 201, JSON.stringify(up.body));
+  assert.equal(up.body.mime, 'image/png');
+  assert.ok(!('data' in up.body));
+  assert.equal((await call('POST', '/api/tenant-documents', { tenantId: lease.tenantId, kind: 'PASSPORT', data: Buffer.from('hello').toString('base64') })).status, 422, 'only photos and PDFs');
+  const list = (await call('GET', `/api/tenant-documents?tenantId=${lease.tenantId}`)).body;
+  assert.equal(list.length, 1);
+  const file = await fetch(`${base}/api/tenant-documents/${up.body.id}/file`, { headers: { Authorization: `Bearer ${token}` } });
+  assert.equal(file.headers.get('content-type'), 'image/png');
+  assert.equal((await call('DELETE', `/api/tenant-documents/${up.body.id}`)).status, 204);
+});
+
+test('contracts: draw up, sign in the office and online, download, lock after signing', async () => {
+  const lease = (await call('GET', '/api/leases?active=1')).body.find(l => l.spaceId);
+  const c = await call('POST', '/api/contracts', { leaseId: lease.id, noticeDays: 30, specialTerms: 'Parking not included.' });
+  assert.equal(c.status, 201, JSON.stringify(c.body));
+  assert.match(c.body.number, /^SL-\d{4}-\d{4}$/);
+  assert.equal(c.body.status, 'DRAFT');
+  assert.equal(c.body.terms.premises.space, lease.space.code);
+  const c2 = await call('POST', '/api/contracts', { leaseId: lease.id });
+  assert.notEqual(c2.body.number, c.body.number);
+  assert.equal((await call('DELETE', `/api/contracts/${c2.body.id}`)).status, 204);
+
+  // terms can change before signing
+  const e = await call('PATCH', `/api/contracts/${c.body.id}`, { rent: 1999, noticeDays: 15 });
+  assert.equal(e.body.terms.rent, 1999);
+
+  const pdf = await fetch(`${base}/api/contracts/${c.body.id}/pdf`, { headers: { Authorization: `Bearer ${token}` } });
+  assert.equal(pdf.headers.get('content-type'), 'application/pdf');
+  const bytes = Buffer.from(await pdf.arrayBuffer());
+  assert.equal(bytes.subarray(0, 5).toString(), '%PDF-');
+
+  const sig = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+  assert.equal((await call('POST', `/api/contracts/${c.body.id}/sign-company`, { signature: 'nope' })).status, 422);
+  const s1 = await call('POST', `/api/contracts/${c.body.id}/sign-company`, { signature: sig });
+  assert.equal(s1.body.companySigned, true);
+  assert.equal(s1.body.status, 'DRAFT');
+  assert.equal((await call('PATCH', `/api/contracts/${c.body.id}`, { rent: 1 })).status, 409, 'locked once signed');
+
+  // tenant signs through the public link, no login
+  const tok = s1.body.signToken;
+  const view = await call('GET', `/api/public/sign/${tok}`, null, null);
+  assert.equal(view.status, 200);
+  assert.equal(view.body.companySigned, true);
+  assert.ok(!('companySignature' in view.body));
+  assert.equal((await call('GET', '/api/public/sign/not-a-real-token-at-all', null, null)).status, 404);
+  assert.equal((await call('POST', `/api/public/sign/${tok}`, { name: 'Tenant', signature: sig }, null)).status, 422, 'must agree');
+  const signed = await call('POST', `/api/public/sign/${tok}`, { name: 'Test Tenant', signature: sig, agree: true }, null);
+  assert.equal(signed.body.status, 'SIGNED');
+  assert.equal((await call('POST', `/api/public/sign/${tok}`, { name: 'Again', signature: sig, agree: true }, null)).status, 409);
+  const after = (await call('GET', `/api/contracts?tenantId=${lease.tenantId}`)).body.find(x => x.id === c.body.id);
+  assert.equal(after.tenantSigned, true);
+  assert.equal((await call('DELETE', `/api/contracts/${c.body.id}`)).status, 409);
+
+  // a paper copy can be uploaded and downloaded as-is
+  const c3 = (await call('POST', '/api/contracts', { leaseId: lease.id })).body;
+  assert.equal((await call('POST', `/api/contracts/${c3.id}/upload`, { data: Buffer.from('not a pdf').toString('base64') })).status, 422);
+  const scan = Buffer.from('%PDF-1.4\n% scanned\n%%EOF');
+  const u = await call('POST', `/api/contracts/${c3.id}/upload`, { fileName: 'signed.pdf', data: scan.toString('base64') });
+  assert.equal(u.body.status, 'SIGNED');
+  const orig = await fetch(`${base}/api/contracts/${c3.id}/pdf?original=1`, { headers: { Authorization: `Bearer ${token}` } });
+  assert.equal(Buffer.from(await orig.arrayBuffer()).toString(), scan.toString());
+  assert.equal((await call('POST', `/api/contracts/${c3.id}/void`)).body.status, 'VOID');
+  // read-only users can see but not sign
+  assert.equal((await call('GET', `/api/contracts?tenantId=${lease.tenantId}`, null, viewerToken)).status, 401, 'removed earlier');
+});
+
+test('leasing import: past deals link to ledger lines without duplicating them', async () => {
+  const tx = (await call('POST', '/api/transactions', { date: '2026-10-07', type: 'INCOME', category: 'LEASING_COMMISSION', description: 'OCTOBER DEALS', amount: 1500 })).body;
+  const before = (await call('GET', '/api/transactions?from=2026-10-01&to=2026-10-31')).body.length;
+  const payload = { deals: [{ number: 1005, clientName: 'October deal 5', status: 'SIGNED', contractType: 'SHORT_TERM', fee: 1500, signedAt: '2026-10-07', closedAt: '2026-10-07',
+    payments: [{ date: '2026-10-07', amount: 1500, type: 'INCOME', description: 'OCTOBER DEALS' }, { date: '2026-10-09', amount: 77, type: 'INCOME', description: 'missing' }] }] };
+  const r = await call('POST', '/api/leasing/import', payload);
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.equal(r.body.created, 1);
+  assert.equal(r.body.linked, 1);
+  assert.equal(r.body.unmatched.length, 1);
+  const again = (await call('POST', '/api/leasing/import', payload)).body;
+  assert.equal(again.updated, 1);
+  assert.equal(again.alreadyLinked, 1);
+  assert.equal((await call('GET', '/api/transactions?from=2026-10-01&to=2026-10-31')).body.length, before, 'nothing duplicated');
+  const deal = (await call('GET', '/api/leasing?q=1005')).body.find(d => d.number === 1005);
+  assert.ok(deal);
+  const full = (await call('GET', `/api/leasing/${deal.id}`)).body;
+  assert.equal(full.transactions[0].id, tx.id);
+  const sum = (await call('GET', '/api/leasing/summary?from=2026-10-01&to=2026-10-31')).body;
+  assert.ok(sum.signed >= 1);
+});
