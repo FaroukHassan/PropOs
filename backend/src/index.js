@@ -48,6 +48,7 @@ api.use('/import', require('./routes/import'));
 api.use('/leasing', require('./routes/leasing'));
 api.use('/contracts', contracts.router);
 api.use('/tenant-documents', require('./routes/documents'));
+api.use('/invoices', require('./routes/invoices'));
 api.use('/', require('./routes/reports'));
 app.use('/api', api);
 

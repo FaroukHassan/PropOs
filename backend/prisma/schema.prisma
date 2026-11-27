@@ -22,6 +22,7 @@ model Org {
   name        String
   slug        String        @unique
   currency    String        @default("AED")
+  trn         String?       // VAT registration number, printed on tax invoices
   users       User[]
   buildings   Building[]
   units       Unit[]
@@ -36,6 +37,7 @@ model Org {
   deals       LeasingDeal[]
   contracts   Contract[]
   documents   TenantDocument[]
+  invoices    Invoice[]
   createdAt   DateTime      @default(now())
 }
 
@@ -245,6 +247,66 @@ enum DocumentKind {
   OTHER
 }
 
+// Invoices Sakanly issues (SALES) and bills it receives from suppliers (PURCHASE)
+model Invoice {
+  id           String        @id @default(uuid())
+  orgId        String
+  org          Org           @relation(fields: [orgId], references: [id])
+  kind         InvoiceKind   @default(SALES)
+  number       String        // INV-2026-0001 / BILL-2026-0001
+  status       InvoiceStatus @default(ISSUED)
+  partyType    PartyType     @default(COMPANY)
+  partyName    String
+  partyTrn     String?
+  partyAddress String?
+  partyEmail   String?
+  partyPhone   String?
+  tenantId     String?
+  landlordId   String?
+  dealId       String?
+  unitId       String?
+  supplierRef  String?       // the supplier's own invoice number (bills)
+  issueDate    DateTime
+  dueDate      DateTime?
+  vatRate      Float         @default(5)
+  lines        Json          // [{ description, qty, unitPrice, vat }]
+  subtotal     Float
+  vat          Float
+  total        Float
+  category     TxCategory?   // where payments go in the ledger
+  notes        String?
+  scan         Bytes?        // supplier's bill, as received
+  scanName     String?
+  scanMime     String?
+  createdBy    String?
+  transactions Transaction[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@unique([orgId, number])
+  @@index([orgId, kind, issueDate])
+}
+
+enum InvoiceKind {
+  SALES
+  PURCHASE
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  VOID
+}
+
+enum PartyType {
+  COMPANY
+  TENANT
+  GUEST
+  LANDLORD
+  SUPPLIER
+  OTHER
+}
+
 enum ContractStatus {
   DRAFT
   SIGNED
@@ -299,6 +361,8 @@ model Transaction {
   booking     Booking?      @relation(fields: [bookingId], references: [id])
   dealId      String?
   deal        LeasingDeal?  @relation(fields: [dealId], references: [id])
+  invoiceId   String?
+  invoice     Invoice?      @relation(fields: [invoiceId], references: [id])
   landlordId  String?
   landlord    Landlord?     @relation(fields: [landlordId], references: [id])
   chequeId    String?       @unique

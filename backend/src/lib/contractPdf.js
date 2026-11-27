@@ -213,4 +213,4 @@ function renderContract(contract) {
   return done;
 }
 
-module.exports = { renderContract, termsHash };
+module.exports = { renderContract, termsHash, drawArLine, arText, arHeight, FONT, ASSETS, NAVY, SAND, INK, MUTED, RULE, PAGE };

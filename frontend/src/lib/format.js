@@ -48,6 +48,8 @@ export const L = {
   spaceStatus: { AVAILABLE: 'Available', RESERVED: 'Reserved', OCCUPIED: 'Occupied', NOT_READY: 'Not ready' },
   leaseStatus: { ACTIVE: 'Active', NOTICE: 'Leaving (notice)', ENDED: 'Ended' },
   contractStatus: { DRAFT: 'Awaiting signatures', SIGNED: 'Signed', VOID: 'Void' },
+  invState: { DRAFT: 'Draft', UNPAID: 'Unpaid', PARTLY_PAID: 'Partly paid', PAID: 'Paid', OVERDUE: 'Overdue', VOID: 'Void' },
+  party: { COMPANY: 'Company', TENANT: 'Tenant', GUEST: 'Guest', LANDLORD: 'Landlord / owner', SUPPLIER: 'Supplier', OTHER: 'Other' },
   docKind: { EMIRATES_ID: 'Emirates ID', PASSPORT: 'Passport', VISA: 'Visa', OTHER: 'Other document' },
   rentPeriod: { MONTHLY: 'Per month', YEARLY: 'Per year' },
   channel: { AIRBNB: 'Airbnb', BOOKING: 'Booking.com', DIRECT: 'Direct', OTHER: 'Other' },
@@ -91,7 +93,7 @@ export const TONE = {
   INCOME: 'green', EXPENSE: 'red',
   LEAD: 'blue', VIEWING: 'violet', SIGNED: 'green',
   SHORT_TERM: 'sand', YEARLY: 'navy',
-  DRAFT: 'amber', VOID: 'red',
+  DRAFT: 'amber', VOID: 'red', UNPAID: 'blue', PARTLY_PAID: 'amber',
 };
 
 export const options = map => Object.entries(map).map(([value, label]) => ({ value, label }));

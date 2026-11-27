@@ -1,7 +1,7 @@
 // backend/src/lib/permissions.js — who can see and change what.
 // Super admins (role ADMIN) have full access and manage the team. Everyone else gets a
 // level per section of the system: none (hidden), view (read only) or edit.
-const MODULES = ['dashboard', 'partitions', 'apartments', 'bookings', 'leasing', 'tenants', 'landlords', 'rent', 'ledger', 'cheques', 'reports', 'maintenance', 'import'];
+const MODULES = ['dashboard', 'partitions', 'apartments', 'bookings', 'leasing', 'tenants', 'landlords', 'rent', 'ledger', 'invoices', 'cheques', 'reports', 'maintenance', 'import'];
 const LEVELS = ['none', 'view', 'edit'];
 const RANK = { none: 0, view: 1, edit: 2 };
 const all = level => Object.fromEntries(MODULES.map(m => [m, level]));
@@ -12,6 +12,8 @@ function effective(user) {
   const base = user.role === 'VIEWER' ? all('view') : all('edit');
   const custom = user.permissions && typeof user.permissions === 'object' ? user.permissions : {};
   const out = { ...base };
+  // a section added after the admin set someone's access stays hidden until the admin opens it up
+  if (Object.keys(custom).length) for (const m of ['invoices']) if (!(m in custom)) out[m] = 'none';
   for (const m of MODULES) if (LEVELS.includes(custom[m])) out[m] = custom[m];
   if (user.role === 'VIEWER') for (const m of MODULES) if (out[m] === 'edit') out[m] = 'view';
   return out;
@@ -52,6 +54,7 @@ function required(method, path, query = {}, body = {}) {
     if (method === 'POST' && body.category === 'MAINTENANCE') return { need, any: ['ledger', 'maintenance'] };
     return { need, any: ['ledger'] };
   }
+  if (is(/^\/invoices/)) return { need, any: ['invoices'] };
   if (is(/^\/(contracts|tenant-documents)/)) return { need, any: ['tenants', 'partitions', 'apartments'] };
   if (is(/^\/spaces\/board/)) return { need, any: ['partitions'] };
   if (read) return null; // shared lookups

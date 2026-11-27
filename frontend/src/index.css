@@ -502,3 +502,14 @@ button.stat { font: inherit; text-align: start; color: inherit; width: 100%; }
 .sign-done { text-align: center; margin-top: 22px; display: grid; gap: 8px; justify-items: center; }
 .sign-tick { width: 54px; height: 54px; border-radius: 50%; background: #dcfce7; color: #15803d; font-size: 28px; display: grid; place-items: center; }
 .sign-foot { text-align: center; color: var(--text-3); padding: 10px 0 24px; }
+
+/* ── Invoices ── */
+.inv-lines { display: grid; gap: 8px; margin-bottom: 12px; }
+.inv-line { display: grid; grid-template-columns: 1fr 70px 110px 64px 100px 34px; gap: 8px; align-items: center; }
+.inv-totals { display: grid; gap: 4px; margin: 12px 0 16px auto; max-width: 280px; font-size: 13px; }
+.inv-totals > div { display: flex; justify-content: space-between; gap: 12px; }
+.inv-totals .inv-total { border-top: 1px solid var(--bg-3); padding-top: 6px; font-size: 15px; }
+@media (max-width: 700px) {
+  .inv-line { grid-template-columns: 1fr 1fr 1fr; }
+  .inv-line > input:first-child { grid-column: 1 / -1; }
+}

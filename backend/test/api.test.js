@@ -512,3 +512,51 @@ test('leasing import: past deals link to ledger lines without duplicating them',
   const sum = (await call('GET', '/api/leasing/summary?from=2026-10-01&to=2026-10-31')).body;
   assert.ok(sum.signed >= 1);
 });
+
+test('invoices: VAT, numbering, payments into the ledger, bills from suppliers', async () => {
+  assert.equal((await call('PATCH', '/api/invoices/settings', { trn: '123' })).status, 422);
+  assert.equal((await call('PATCH', '/api/invoices/settings', { trn: '100123456700003' })).body.trn, '100123456700003');
+  const inv = await call('POST', '/api/invoices', {
+    kind: 'SALES', partyType: 'COMPANY', partyName: 'Yalla Suite Hotel', partyTrn: '100999888700003', issueDate: '2026-11-20', dueDate: '2026-11-25',
+    vatRate: 5, category: 'LEASING_COMMISSION', lines: [{ description: 'Agency fee — Deal 18', qty: 1, unitPrice: 1500 }, { description: 'Admin fee (no VAT)', qty: 2, unitPrice: 50, vat: false }],
+  });
+  assert.equal(inv.status, 201, JSON.stringify(inv.body));
+  assert.match(inv.body.number, /^INV-2026-\d{4}$/);
+  assert.equal(inv.body.subtotal, 1600);
+  assert.equal(inv.body.vat, 75);
+  assert.equal(inv.body.total, 1675);
+  assert.equal(inv.body.state, 'OVERDUE');
+  assert.equal((await call('POST', '/api/invoices', { partyName: 'X', lines: [] })).status, 422);
+  assert.equal((await call('POST', '/api/invoices', { partyName: 'X', vatRate: 7, lines: [{ description: 'a', unitPrice: 1 }] })).status, 422);
+
+  const pdf = await fetch(`${base}/api/invoices/${inv.body.id}/pdf`, { headers: { Authorization: `Bearer ${token}` } });
+  assert.equal(Buffer.from(await pdf.arrayBuffer()).subarray(0, 5).toString(), '%PDF-');
+
+  assert.equal((await call('POST', `/api/invoices/${inv.body.id}/payments`, { amount: 5000 })).status, 422, 'not more than due');
+  const p1 = await call('POST', `/api/invoices/${inv.body.id}/payments`, { amount: 1000, date: '2026-11-21', method: 'BANK' });
+  assert.equal(p1.body.state, 'OVERDUE');
+  assert.equal(p1.body.balance, 675);
+  const p2 = await call('POST', `/api/invoices/${inv.body.id}/payments`, { amount: 675, date: '2026-11-22' });
+  assert.equal(p2.body.state, 'PAID');
+  const ledger = (await call('GET', '/api/transactions?from=2026-11-21&to=2026-11-22')).body.filter(t => t.invoiceId === inv.body.id);
+  assert.equal(ledger.length, 2);
+  assert.equal(ledger[0].category, 'LEASING_COMMISSION');
+  assert.equal((await call('PATCH', `/api/invoices/${inv.body.id}`, { lines: [{ description: 'x', unitPrice: 1 }] })).status, 409);
+  assert.equal((await call('POST', `/api/invoices/${inv.body.id}/void`)).status, 409);
+
+  const bill = await call('POST', '/api/invoices', { kind: 'PURCHASE', partyType: 'SUPPLIER', partyName: 'Cool AC Services', supplierRef: 'AC-778', issueDate: '2026-11-10', category: 'MAINTENANCE', lines: [{ description: 'AC service', qty: 3, unitPrice: 100 }] });
+  assert.match(bill.body.number, /^BILL-2026-/);
+  assert.equal(bill.body.total, 315);
+  const scan = Buffer.from('%PDF-1.4\n%%EOF').toString('base64');
+  assert.equal((await call('POST', `/api/invoices/${bill.body.id}/scan`, { fileName: 'ac.pdf', data: scan })).status, 200);
+  const bp = await call('POST', `/api/invoices/${bill.body.id}/payments`, { amount: 315, date: '2026-11-12', method: 'CASH' });
+  assert.equal(bp.body.state, 'PAID');
+  const t = (await call('GET', '/api/transactions?from=2026-11-12&to=2026-11-12')).body.find(x => x.invoiceId === bill.body.id);
+  assert.equal(t.type, 'EXPENSE');
+
+  const s = (await call('GET', '/api/invoices/summary?kind=SALES&from=2026-11-01&to=2026-11-30')).body;
+  assert.ok(s.total >= 1675 && s.vat >= 75);
+  const d = await call('POST', '/api/invoices', { partyName: 'Draft Co', status: 'DRAFT', lines: [{ description: 'x', unitPrice: 10 }] });
+  assert.equal(d.body.state, 'DRAFT');
+  assert.equal((await call('DELETE', `/api/invoices/${d.body.id}`)).status, 204);
+});
