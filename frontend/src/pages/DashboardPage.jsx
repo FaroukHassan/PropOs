@@ -1,6 +1,6 @@
 // frontend/src/pages/DashboardPage.jsx
 import { t, locale } from '../lib/i18n';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import { useScope } from '../lib/scope';
 import { useApi, useSticky } from '../lib/hooks';
@@ -9,6 +9,7 @@ import { Stat, Spinner, ErrorBox, Badge } from '../components/ui';
 import { usePeriod, PeriodPicker } from '../lib/period';
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const period = usePeriod();
   const { scoped } = useScope();
   const { data: d, loading, error, refetch } = useApi(scoped('/dashboard', period.params));
@@ -32,7 +33,7 @@ export default function DashboardPage() {
 
       <div className="grid g4">
         <Stat accent label={t("Net profit · {0}", [period.label])} value={money(d.money.net)} sub={t("{0} in · {1} out{2}", [money(d.money.income), money(d.money.expenses), vsPrev])} />
-        <Stat label={t("Rent collected")} value={pct(d.rent.rate)} sub={t("{0} of {1}", [money(d.rent.collected), money(d.rent.due)])} progress={d.rent.rate} />
+        <Stat label={t("Rent collected")} value={pct(d.rent.rate)} sub={t("{0} of {1}", [money(d.rent.collected), money(d.rent.due)])} progress={d.rent.rate} onClick={() => navigate('/rent', { state: { show: 'unpaid' } })} />
         <Stat label={t("Rooms occupied")} value={`${d.partitions.occupied} / ${d.partitions.total}`}
           sub={t("{0} available · {1} not ready", [d.partitions.available, d.partitions.notReady])} progress={d.partitions.occupancy} />
         <Stat label={t("Holiday homes")} value={pct(d.holiday.occupancy)}
@@ -58,7 +59,7 @@ export default function DashboardPage() {
         </div>
 
         <div className="card">
-          <div className="card-head"><div className="card-title">{t("Rent still to collect")}</div><Link to="/rent" className="btn btn-sm">{t("All")}</Link></div>
+          <div className="card-head"><div className="card-title">{t("Rent still to collect")}</div><Link to="/rent" state={{ show: 'unpaid' }} className="btn btn-sm">{t("All")}</Link></div>
           {d.rent.unpaid.length === 0 ? <p className="muted small">{t("Everyone has paid for")} {period.label}. 🎉</p> :
             d.rent.unpaid.map(r => (
               <div key={`${r.leaseId}-${r.month}`} className="list-item">

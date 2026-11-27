@@ -1,6 +1,7 @@
 // frontend/src/pages/RentPage.jsx — who has paid this month (replaces "Rent by Partition")
 import { t } from '../lib/i18n';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useScope } from '../lib/scope';
 import { usePeriod, PeriodPicker } from '../lib/period';
 import { useApi, useSticky } from '../lib/hooks';
@@ -15,6 +16,9 @@ export default function RentPage() {
   const { scoped, short } = useScope();
   const period = usePeriod();
   const [show, setShow] = useSticky('rent_show', 'unpaid');
+  // opened from the dashboard's "Rent collected" card: show only what is still to collect
+  const location = useLocation();
+  useEffect(() => { if (location.state?.show) setShow(location.state.show); }, [location.key]); // eslint-disable-line react-hooks/exhaustive-deps
   const [q, setQ] = useState('');
   const range = !period.month; // more than one month → show which month each line is for
   const { data, loading, error, refetch } = useApi(scoped('/reports/rent-collection', period.params));
