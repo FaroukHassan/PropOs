@@ -110,7 +110,7 @@ function UserModal({ person, me, onClose, onSaved }) {
               <div className="section-title" style={{ margin: 0 }}>{t('What this person can see and do')}</div>
               <div className="row wrap">
                 <span className="small muted">{t('Start from:')}</span>
-                {[['full', t('Everything')], ['operations', t('Operations')], ['leasing', t('Leasing agent')], ['accounts', t('Accounts')], ['readonly', t('View only')]].map(([k, label]) => (
+                {[['full', t('Everything')], ['operations', t('Operations')], ['leasing', t('Leasing agent')], ['marketing', t('Marketing')], ['accounts', t('Accounts')], ['readonly', t('View only')]].map(([k, label]) => (
                   <button type="button" key={k} className="btn btn-sm" onClick={() => setPerms(readOnly ? Object.fromEntries(Object.entries(PRESETS[k]).map(([s, l]) => [s, l === 'edit' ? 'view' : l])) : { ...PRESETS[k] })}>{label}</button>
                 ))}
               </div>

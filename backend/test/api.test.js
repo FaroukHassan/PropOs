@@ -609,3 +609,47 @@ test('photos: upload to an apartment or a room, cover, public file, shown on the
   assert.equal((await call('GET', `/api/photos?unitId=${unit.id}`)).body.find(p => p.id === a.body.id).cover, true, 'cover moves on when the cover is deleted');
   assert.equal((await call('POST', '/api/photos', { unitId: unit.id, data: jpeg }, viewerToken)).status, 401);
 });
+
+test('marketing: videos (file and link), streaming in pieces, library and access', async () => {
+  const lib = (await call('GET', '/api/marketing/library')).body;
+  assert.ok(lib.units.length && lib.totals.rooms > 0);
+  const unit = lib.units.find(u => u.spaces.length);
+  const room = unit.spaces[0];
+  // a tiny MP4 header is enough for the type check
+  const mp4 = Buffer.concat([Buffer.from([0, 0, 0, 0x18]), Buffer.from('ftypmp42'), Buffer.alloc(200, 7)]);
+  const v = await call('POST', '/api/photos', { unitId: unit.id, spaceId: room.id, kind: 'VIDEO', duration: 12.4 });
+  assert.equal(v.status, 201, JSON.stringify(v.body));
+  assert.equal(v.body.kind, 'VIDEO');
+  assert.equal(v.body.cover, false, 'a video never becomes the cover');
+  assert.equal((await fetch(`${base}/api/public/photo/${v.body.id}`)).status, 404, 'still uploading');
+  const bad = await fetch(`${base}/api/photos/${v.body.id}/file`, { method: 'PUT', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'video/mp4' }, body: Buffer.from('not a video') });
+  assert.equal(bad.status, 422);
+  const put = await fetch(`${base}/api/photos/${v.body.id}/file`, { method: 'PUT', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'video/mp4' }, body: mp4 });
+  assert.equal(put.status, 200);
+  assert.equal((await put.json()).size, mp4.length);
+  const part = await fetch(`${base}/api/public/photo/${v.body.id}`, { headers: { Range: 'bytes=0-9' } });
+  assert.equal(part.status, 206);
+  assert.equal(part.headers.get('content-range'), `bytes 0-9/${mp4.length}`);
+  assert.equal((await part.arrayBuffer()).byteLength, 10);
+  const dl = await fetch(`${base}/api/public/photo/${v.body.id}?download=Flat%201`);
+  assert.match(dl.headers.get('content-disposition'), /Flat 1\.mp4/);
+  assert.equal((await call('PATCH', `/api/photos/${v.body.id}`, { cover: true })).status, 422);
+  assert.equal((await call('POST', '/api/photos', { unitId: unit.id, kind: 'VIDEO', url: 'javascript:alert(1)' })).status, 422);
+  const link = await call('POST', '/api/photos', { unitId: unit.id, kind: 'VIDEO', url: 'https://youtu.be/abc123' });
+  assert.equal(link.status, 201);
+  const r = await fetch(`${base}/api/public/photo/${link.body.id}`, { redirect: 'manual' });
+  assert.equal(r.status, 302);
+  assert.equal(r.headers.get('location'), 'https://youtu.be/abc123');
+  const after = (await call('GET', '/api/marketing/library')).body;
+  assert.equal(after.totals.videos, lib.totals.videos + 2);
+  // videos stay off the website
+  const site = (await call('GET', '/api/public/site/rooms', null, null)).body;
+  for (const s of site) assert.ok(!s.photos.includes(v.body.id));
+  // access: a marketing-only user can manage media; someone set up before the section existed can't see it
+  const perm = require('../src/lib/permissions');
+  const mkt = { role: 'MANAGER', permissions: { marketing: 'edit', partitions: 'none', apartments: 'none' } };
+  assert.equal(perm.effective(mkt).marketing, 'edit');
+  assert.deepEqual(perm.required('POST', '/photos', {}, {}).any.includes('marketing'), true);
+  assert.equal(perm.required('GET', '/marketing/library').any[0], 'marketing');
+  assert.equal(perm.effective({ role: 'MANAGER', permissions: { leasing: 'edit' } }).marketing, 'none');
+});

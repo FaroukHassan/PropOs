@@ -238,8 +238,9 @@ function AvailableGallery({ buildings, filter, onOpen }) {
   const cards = buildings.flatMap(b => b.units.flatMap(u => u.spaces
     .filter(s => filter !== 'ALL' || s.status === 'AVAILABLE' || s.status === 'RESERVED')
     .map(s => {
-      const own = (u.photos || []).filter(p => p.spaceId === s.id);
-      const shared = (u.photos || []).filter(p => !p.spaceId);
+      const pics = (u.photos || []).filter(p => p.kind !== 'VIDEO');
+      const own = pics.filter(p => p.spaceId === s.id);
+      const shared = pics.filter(p => !p.spaceId);
       return { b, u, s, photos: [...own, ...shared] };
     })));
   if (!cards.length) return <Empty icon="▦" title={t("Nothing available with this filter")} />;

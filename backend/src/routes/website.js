@@ -27,7 +27,7 @@ router.get('/rooms', ah(async (req, res) => {
   const spaces = await prisma.space.findMany({
     where: { orgId: await orgId(), status: 'AVAILABLE', unit: { is: { active: true, onWebsite: true, mode: 'PARTITIONS' } } },
     include: {
-      unit: { include: { building: true, photos: { select: { id: true, spaceId: true, cover: true }, orderBy: [{ cover: 'desc' }, { sort: 'asc' }] } } },
+      unit: { include: { building: true, photos: { where: { kind: 'PHOTO' }, select: { id: true, spaceId: true, cover: true, kind: true }, orderBy: [{ cover: 'desc' }, { sort: 'asc' }] } } },
     },
     orderBy: [{ monthlyRate: 'asc' }],
   });
@@ -47,7 +47,7 @@ router.get('/rooms', ah(async (req, res) => {
 router.get('/homes', ah(async (req, res) => {
   const units = await prisma.unit.findMany({
     where: { orgId: await orgId(), active: true, onWebsite: true, mode: 'HOLIDAY' },
-    include: { building: true, photos: { select: { id: true }, orderBy: [{ cover: 'desc' }, { sort: 'asc' }], take: 20 } },
+    include: { building: true, photos: { where: { kind: 'PHOTO' }, select: { id: true }, orderBy: [{ cover: 'desc' }, { sort: 'asc' }], take: 20 } },
     orderBy: [{ nightlyRate: 'asc' }],
   });
   cacheFor(res, 300);

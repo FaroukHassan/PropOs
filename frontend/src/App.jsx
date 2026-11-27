@@ -29,11 +29,13 @@ import ImportPage from './pages/ImportPage';
 import SettingsPage from './pages/SettingsPage';
 import LeasingPage from './pages/LeasingPage';
 import InvoicesPage from './pages/InvoicesPage';
+import MarketingPage from './pages/MarketingPage';
 
 const NAV = [
   ['Overview', [['/dashboard', '◧', 'Dashboard']]],
   ['Properties', [['/partitions', '▦', 'Partitions board'], ['/units', '⌂', 'Apartments'], ['/bookings', '☾', 'Holiday bookings']]],
   ['Leasing', [['/leasing', '◆', 'Leasing deals']]],
+  ['Marketing', [['/marketing', '▶', 'Media library']]],
   ['People', [['/tenants', '☺', 'Tenants'], ['/landlords', '⚿', 'Landlords & owners']]],
   ['Money', [['/rent', '✓', 'Rent collection'], ['/ledger', '≡', 'Income & expenses'], ['/invoices', '▤', 'Invoices'], ['/cheques', '✎', 'Cheques'], ['/reports', '◔', 'Reports']]],
   ['Operations', [['/maintenance', '⚒', 'Maintenance'], ['/import', '⇪', 'Import from sheets'], ['/settings', '⚙', 'Settings']]],
@@ -121,6 +123,7 @@ function Shell() {
             <Route path="/rent" element={<RentPage />} />
             <Route path="/ledger" element={<LedgerPage />} />
             <Route path="/invoices" element={<InvoicesPage />} />
+            <Route path="/marketing" element={<MarketingPage />} />
             <Route path="/cheques" element={<ChequesPage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/maintenance" element={<MaintenancePage />} />

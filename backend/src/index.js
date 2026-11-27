@@ -53,6 +53,7 @@ api.use('/contracts', contracts.router);
 api.use('/tenant-documents', require('./routes/documents'));
 api.use('/invoices', require('./routes/invoices'));
 api.use('/photos', photos.router);
+api.use('/marketing', require('./routes/marketing'));
 api.use('/', require('./routes/reports'));
 app.use('/api', api);
 

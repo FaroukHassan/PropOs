@@ -302,8 +302,8 @@ model UnitPhoto {
   unit      Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
   spaceId   String?
   space     Space?   @relation(fields: [spaceId], references: [id], onDelete: SetNull)
-  data      Bytes
-  thumb     Bytes
+  data      Bytes?
+  thumb     Bytes?
   mime      String   @default("image/jpeg")
   width     Int?
   height    Int?
@@ -311,6 +311,10 @@ model UnitPhoto {
   cover     Boolean  @default(false)
   sort      Int      @default(0)
   createdAt DateTime @default(now())
+  kind      MediaKind @default(PHOTO)
+  url       String?   // a video kept elsewhere (YouTube, Google Drive, Instagram…)
+  size      Int?
+  duration  Int?      // seconds, for videos
 
   @@index([unitId, sort])
   @@index([spaceId])
@@ -651,4 +655,9 @@ enum DealStatus {
 enum ContractType {
   SHORT_TERM // monthly, 1–11 months
   YEARLY
+}
+
+enum MediaKind {
+  PHOTO
+  VIDEO
 }

@@ -93,7 +93,7 @@ spacesRouter.get('/board', ah(async (req, res) => {
     include: {
       building: true,
       spaces: { include: { leases: { ...activeLease, take: 1 } }, orderBy: { code: 'asc' } },
-      photos: { select: { id: true, spaceId: true, cover: true }, orderBy: [{ cover: 'desc' }, { sort: 'asc' }] },
+      photos: { select: { id: true, spaceId: true, cover: true, kind: true }, orderBy: [{ cover: 'desc' }, { sort: 'asc' }] },
     },
     orderBy: [{ building: { name: 'asc' } }, { number: 'asc' }],
   });
