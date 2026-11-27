@@ -38,7 +38,7 @@ export default {
  "Void": "إلغاء العقد",
  "Edit contract terms": "تعديل شروط العقد",
  "New sub-lease contract": "عقد إيجار من الباطن جديد",
- "Sakanly Stay Holiday Homes LLC and the tenant. The contract is in English and Arabic; parties, apartment and money come from the tenancy and the tenant's details.": "بين سكنلي ستاي لبيوت العطلات والمستأجر. العقد بالعربية والإنجليزية، وتؤخذ بيانات الطرفين والشقة والمبالغ من عقد السكن وبيانات المستأجر.",
+ "Sakanly Stay Vacation Homes Rental L.L.C and the tenant. The contract is in English and Arabic; parties, apartment and money come from the tenancy and the tenant's details.": "بين سكنلي ستاي لتأجير بيوت العطلات والمستأجر. العقد بالعربية والإنجليزية، وتؤخذ بيانات الطرفين والشقة والمبالغ من عقد السكن وبيانات المستأجر.",
  "Draw up contract": "إنشاء العقد",
  "Please sign first": "برجاء التوقيع أولاً",
  "Tenant signature": "توقيع المستأجر",

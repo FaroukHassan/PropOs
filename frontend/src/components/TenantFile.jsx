@@ -144,7 +144,7 @@ export function TenantContracts({ tenant }) {
         <FormModal wide title={drawing.contract ? t("Edit contract terms") : t("New sub-lease contract")}
           fields={drawing.contract ? contractFields(leases).slice(1) : contractFields(leases)}
           initial={drawing.contract ? { ...drawing.contract.terms, specialTerms: drawing.contract.terms.specialTerms || '', specialTermsAr: drawing.contract.terms.specialTermsAr || '' } : { leaseId: (leases.find(l => l.status !== 'ENDED') || leases[0])?.id, noticeDays: 30 }}
-          intro={<p className="small muted">{t("Sakanly Stay Holiday Homes LLC and the tenant. The contract is in English and Arabic; parties, apartment and money come from the tenancy and the tenant's details.")}</p>}
+          intro={<p className="small muted">{t("Sakanly Stay Vacation Homes Rental L.L.C and the tenant. The contract is in English and Arabic; parties, apartment and money come from the tenancy and the tenant's details.")}</p>}
           submitLabel={drawing.contract ? t("Save") : t("Draw up contract")}
           onClose={() => setDrawing(null)}
           onSubmit={async v => {

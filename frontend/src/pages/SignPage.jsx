@@ -54,7 +54,7 @@ export default function SignPage() {
         {c && (
           <>
             <h1 className="page-title">{t('Sub-lease agreement')}</h1>
-            <p className="small muted"><bdi dir="ltr">{c.number}</bdi> · Sakanly Stay Holiday Homes LLC</p>
+            <p className="small muted"><bdi dir="ltr">{c.number}</bdi> · Sakanly Stay Vacation Homes Rental L.L.C</p>
             <dl className="kv" style={{ margin: '14px 0' }}>
               <dt>{t('Tenant')}</dt><dd>{tm.tenant.name}</dd>
               <dt>{t('Home')}</dt><dd>{p.whole ? `${t('Apartment')} ${p.unit}` : `${t(KIND[p.kind] || 'Room')} ${p.space} · ${t('Apartment')} ${p.unit}`}, {p.building}{p.area ? `, ${p.area}` : ''}</dd>

@@ -2,13 +2,13 @@
 
 // Sakanly's details as they appear on the contract.
 const COMPANY = {
-  name: 'Sakanly Stay Holiday Homes LLC',
-  nameAr: 'سكنلي ستاي لبيوت العطلات ش.ذ.م.م',
+  name: 'Sakanly Stay Vacation Homes Rental L.L.C',
+  nameAr: 'سكنلي ستاي لتأجير بيوت العطلات ش.ذ.م.م',
   address: 'Office 301, Warsan Building, Barsha Heights, Dubai, UAE',
   addressAr: 'مكتب 301، مبنى ورسان، برشا هايتس، دبي، الإمارات العربية المتحدة',
   phone: '+971 56 591 3200',
   email: 'info@sakanly.com',
-  licenseNo: process.env.COMPANY_LICENSE_NO || '',
+  licenseNo: process.env.COMPANY_LICENSE_NO || '1623106', // Dubai DET commercial licence
 };
 
 const DEFAULT_INCLUDES = 'electricity, water, air conditioning, internet and cleaning of the shared areas';
