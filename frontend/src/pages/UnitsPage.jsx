@@ -28,7 +28,7 @@ export default function UnitsPage() {
   return (
     <>
       <div className="toolbar">
-        <Tabs value={mode} onChange={setMode} items={[['', t("All")], ['PARTITIONS', t("Partitions")], ['HOLIDAY', t("Holiday homes")], ['LONG_TERM', t("Long-term")]]} />
+        <Tabs value={mode} onChange={setMode} items={[['', t("All")], ['PARTITIONS', t("Rooms")], ['HOLIDAY', t("Holiday homes")], ['LONG_TERM', t("Long-term")]]} />
         <div className="grow" />
         {can.write && <>
           <button className="btn" onClick={() => setModal('building')}>{t("+ Building")}</button>
@@ -38,7 +38,7 @@ export default function UnitsPage() {
 
       {loading && !data ? <Spinner /> : rows.length === 0 ? (
         <Empty icon="⌂" title={t("No apartments yet")} action={can.write && <button className="btn btn-primary" onClick={() => setModal(buildings.data?.length ? 'unit' : 'building')}>{buildings.data?.length ? t("+ Apartment") : t("+ Building first")}</button>}>
-          {t("Add each apartment Sakanly runs: partitions, holiday homes and long-term lets.")}
+          {t("Add each apartment Sakanly runs: rooms, holiday homes and long-term lets.")}
         </Empty>
       ) : (
         <div className="card card-flush">

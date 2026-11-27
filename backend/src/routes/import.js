@@ -160,7 +160,7 @@ router.post('/', ah(async (req, res) => {
     for (const [i, row] of rows.entries()) {
       const g = getter(row);
       const bName = g('building'), unitNo = g('unit'), rawCode = g('code');
-      if (!bName || !unitNo || !rawCode) { result.skipped.push({ row: i + 2, reason: 'Missing building, flat or partition number' }); continue; }
+      if (!bName || !unitNo || !rawCode) { result.skipped.push({ row: i + 2, reason: 'Missing building, flat or room number' }); continue; }
       const { value: price, range } = parseNumberRange(g('price'));
       if (price === null) { result.skipped.push({ row: i + 2, reason: 'No price' }); continue; }
       const { code, kind: spaceKind } = spaceCode(rawCode);
@@ -250,7 +250,7 @@ router.post('/', ah(async (req, res) => {
     for (const [i, row] of rows.entries()) {
       const g = getter(row);
       const bName = g('building'), unitNo = g('unit'), rawCode = g('code');
-      if (!bName || !unitNo || !rawCode) { result.skipped.push({ row: i + 2, reason: 'Missing building, flat or partition' }); continue; }
+      if (!bName || !unitNo || !rawCode) { result.skipped.push({ row: i + 2, reason: 'Missing building, flat or room' }); continue; }
       const { code, kind: spaceKind } = spaceCode(rawCode);
       const price = parseNumberRange(g('price')).value;
       const name = g('tenant');

@@ -50,10 +50,10 @@ export default function RentPage() {
       </div>
       <div className="toolbar">
         <Tabs value={show} onChange={setShow} items={[['unpaid', t("Not fully paid")], ['OVERDUE', t("Overdue{0}", [overdue.length ? ` (${overdue.length})` : ''])], ['PAID', t("Paid")], ['all', t("Everyone")]]} />
-        <input className="input input-sm" placeholder={t("Search tenant, phone, partition")} value={q} onChange={e => setQ(e.target.value)} style={{ width: 220 }} />
+        <input className="input input-sm" placeholder={t("Search tenant, phone, room")} value={q} onChange={e => setQ(e.target.value)} style={{ width: 220 }} />
         <div className="grow" />
         <button className="btn" onClick={() => downloadCsv(`rent-collection-${fileTag}.csv`, rows.map(r => ({
-          Month: r.month, 'Due date': r.dueDate?.slice(0, 10), Building: r.building, Flat: r.unit, Partition: r.space || '', Tenant: r.tenant, Phone: r.phone || '', Due: r.due, Collected: r.collected, Balance: r.balance, Status: L.rentStatus[r.status],
+          Month: r.month, 'Due date': r.dueDate?.slice(0, 10), Building: r.building, Flat: r.unit, Room: r.space || '', Tenant: r.tenant, Phone: r.phone || '', Due: r.due, Collected: r.collected, Balance: r.balance, Status: L.rentStatus[r.status],
         })))}>{t("Export")}</button>
       </div>
       <div className="grid g4" style={{ marginBottom: 16 }}>
@@ -70,7 +70,7 @@ export default function RentPage() {
             <div className="card-head"><div className="card-title">{g}</div><span className="small muted">{money(list.reduce((s, r) => s + r.balance, 0))} {t("outstanding")}</span></div>
             <div className="table-wrap">
               <table className="table">
-                <thead><tr><th>{t("Partition")}</th><th>{t("Tenant")}</th>{range && <th>{t("Month")}</th>}<th>{t("Due date")}</th><th className="num">{t("Rent")}</th><th className="num">{t("Paid")}</th><th className="num">{t("Balance")}</th><th>{t("Status")}</th><th></th></tr></thead>
+                <thead><tr><th>{t("Room")}</th><th>{t("Tenant")}</th>{range && <th>{t("Month")}</th>}<th>{t("Due date")}</th><th className="num">{t("Rent")}</th><th className="num">{t("Paid")}</th><th className="num">{t("Balance")}</th><th>{t("Status")}</th><th></th></tr></thead>
                 <tbody>
                   {list.map(r => (
                     <tr key={`${r.leaseId}-${r.month}`}>

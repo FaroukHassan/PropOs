@@ -67,7 +67,7 @@ export default function BookingsPage() {
       </div>
 
       {homes.length === 0 ? (
-        <Empty icon="☾" title={t("No holiday homes yet")}>{t("Add an apartment and set \"How it is rented\" to Holiday home, or mark a partition as Reserved to let it nightly.")}</Empty>
+        <Empty icon="☾" title={t("No holiday homes yet")}>{t("Add an apartment and set \"How it is rented\" to Holiday home, or mark a room as Reserved to let it nightly.")}</Empty>
       ) : (
         <>
           <div className="grid g4" style={{ marginBottom: 16 }}>

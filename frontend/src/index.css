@@ -197,19 +197,47 @@ table.table { width: 100%; border-collapse: collapse; font-size: 13px; }
 /* ─── Partition board ────────────────────────────────────────────────────── */
 .board-building { margin-bottom: 28px; }
 .board-building h2 { font-size: 15px; font-weight: 650; margin-bottom: 10px; display: flex; align-items: baseline; gap: 10px; }
-.board-units { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
-.board-unit { background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 14px; box-shadow: var(--shadow); }
-.board-unit-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-.board-unit-head .apt { font-weight: 700; font-size: 15px; }
+.board-units { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(440px, 100%), 1fr)); gap: 16px; }
+.board-unit { background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-lg); padding: 16px 16px 14px; box-shadow: var(--shadow); }
+.board-unit-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.bu-title { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.board-unit-head .apt { font-weight: 700; font-size: 16px; color: var(--text); text-decoration: none; letter-spacing: -.2px; }
+.board-unit-head .apt:hover { color: var(--sand-2, #a88445); }
+.bu-occ { display: flex; align-items: center; gap: 10px; margin: 10px 0 12px; font-size: 12px; color: var(--text-3); white-space: nowrap; }
+.bu-bar { flex: 1; height: 4px; border-radius: 4px; background: var(--bg-3); overflow: hidden; }
+.bu-bar i { display: block; height: 100%; background: var(--navy); border-radius: 4px; }
+
+/* Room tiles */
+.rooms { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 8px; }
+.room-tile { position: relative; display: flex; flex-direction: column; gap: 6px; text-align: start; padding: 10px 11px 9px; border-radius: 10px; border: 1px solid var(--line); background: #fff; cursor: pointer; color: var(--text); overflow: hidden; transition: border-color .12s, box-shadow .12s, transform .08s; min-height: 92px; font: inherit; }
+.room-tile::before { content: ''; position: absolute; inset-block: 0; inset-inline-start: 0; width: 3px; background: var(--st, var(--line-2)); }
+.room-tile:hover { border-color: var(--line-2); box-shadow: 0 4px 14px rgba(16, 30, 55, .08); transform: translateY(-1px); }
+.rt-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.rt-name { font-weight: 700; font-size: 13.5px; letter-spacing: -.1px; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.rt-bed { color: var(--text-3); }
+.rt-status { font-size: 10.5px; font-weight: 600; padding: 1px 7px; border-radius: 999px; background: var(--st-bg, var(--bg-2)); color: var(--st-fg, var(--text-2)); white-space: nowrap; }
+.rt-who { display: flex; align-items: center; gap: 6px; min-height: 22px; font-size: 12px; color: var(--text-2); min-width: 0; }
+.rt-av { flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--navy); color: #fff; font-size: 9.5px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; letter-spacing: .3px; }
+.rt-tenant { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rt-note { color: var(--st-fg, var(--text-3)); font-weight: 500; }
+.rt-foot { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; margin-top: auto; padding-top: 6px; border-top: 1px solid var(--bg-3); }
+.rt-price { font-weight: 700; font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rt-price small { font-weight: 500; color: var(--text-3); margin-inline-start: 2px; font-size: 10.5px; }
+.rt-until { font-size: 10.5px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-AVAILABLE { --st: #2e9d63; --st-bg: #e4f4ea; --st-fg: #17673f; background: #fbfefc; }
+.st-OCCUPIED { --st: var(--navy); --st-bg: #e8ecf3; --st-fg: var(--navy); }
+.st-RESERVED { --st: #d99a2b; --st-bg: #fbf0dc; --st-fg: #8a5a0b; }
+.st-NOT_READY { --st: #b9b3a8; --st-bg: var(--bg-2); --st-fg: var(--text-3); background: var(--bg-2, #f7f5f0); }
+.st-NOT_READY .rt-name, .st-NOT_READY .rt-price { color: var(--text-3); }
+.rt-add { align-items: center; justify-content: center; border-style: dashed; color: var(--text-3); background: transparent; font-size: 12px; gap: 2px; }
+.rt-add::before { display: none; }
+.rt-plus { font-size: 20px; line-height: 1; color: var(--sand-2, #a88445); }
+.dot-AVAILABLE, .dot-OCCUPIED, .dot-RESERVED, .dot-NOT_READY { border-radius: 50% !important; }
+.dot-AVAILABLE { background: #2e9d63; } .dot-OCCUPIED { background: var(--navy); } .dot-RESERVED { background: #d99a2b; } .dot-NOT_READY { background: #b9b3a8; }
+/* kept for older screens that still use the plain tiles */
 .spaces { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; }
-.space { border-radius: 8px; padding: 7px 8px; cursor: pointer; border: 1px solid transparent; text-align: left; background: var(--bg-2); transition: transform .08s, box-shadow .12s; min-height: 58px; }
-.space:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
-.space .code { font-weight: 700; font-size: 12px; }
-.space .who { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.space .price { font-size: 11px; font-variant-numeric: tabular-nums; opacity: .85; }
 .s-AVAILABLE { background: var(--green-bg); border-color: #9fd4b6; color: #155c39; }
 .s-OCCUPIED { background: var(--navy); color: #fff; }
-.s-OCCUPIED .price { color: var(--sand-2); }
 .s-RESERVED { background: var(--amber-bg); border-color: #f1d3a0; color: #7a4a06; }
 .s-NOT_READY { background: var(--bg-3); color: var(--text-3); border-style: dashed; border-color: var(--line-2); }
 .legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--text-2); }
@@ -329,8 +357,7 @@ table.table { width: 100%; border-collapse: collapse; font-size: 13px; }
   .card-flush .card-head { padding: 12px 14px 0; }
   .card-head { flex-wrap: wrap; }
   .board-units { grid-template-columns: 1fr; }
-  .spaces { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); }
-  .space { min-height: 64px; }
+  .rooms { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .kv { grid-template-columns: 110px 1fr; }
 
   /* Tables become cards: one card per row, each cell labelled with its column (see lib/mobileTables.js) */

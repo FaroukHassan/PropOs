@@ -33,7 +33,7 @@ export default function DashboardPage() {
       <div className="grid g4">
         <Stat accent label={t("Net profit · {0}", [period.label])} value={money(d.money.net)} sub={t("{0} in · {1} out{2}", [money(d.money.income), money(d.money.expenses), vsPrev])} />
         <Stat label={t("Rent collected")} value={pct(d.rent.rate)} sub={t("{0} of {1}", [money(d.rent.collected), money(d.rent.due)])} progress={d.rent.rate} />
-        <Stat label={t("Partitions occupied")} value={`${d.partitions.occupied} / ${d.partitions.total}`}
+        <Stat label={t("Rooms occupied")} value={`${d.partitions.occupied} / ${d.partitions.total}`}
           sub={t("{0} available · {1} not ready", [d.partitions.available, d.partitions.notReady])} progress={d.partitions.occupancy} />
         <Stat label={t("Holiday homes")} value={pct(d.holiday.occupancy)}
           sub={d.holiday.units ? t("{0} nights · ADR {1}", [d.holiday.bookedNights, money(d.holiday.adr)]) : t("No holiday homes yet")} progress={d.holiday.occupancy} />

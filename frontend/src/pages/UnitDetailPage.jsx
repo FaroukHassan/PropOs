@@ -44,7 +44,7 @@ export default function UnitDetailPage() {
           </div>
         </div>
         {can.write && <div className="row">
-          {u.mode === 'PARTITIONS' && <button className="btn" onClick={() => setModal({ kind: 'space' })}>{t("+ Partition / bed")}</button>}
+          {u.mode === 'PARTITIONS' && <button className="btn" onClick={() => setModal({ kind: 'space' })}>{t("+ Room / bed")}</button>}
           {u.mode === 'LONG_TERM' && activeLeases.length === 0 && <button className="btn" onClick={() => setModal({ kind: 'lease' })}>{t("+ Tenant")}</button>}
           {u.mode === 'HOLIDAY' && <Link className="btn" to="/bookings">{t("Bookings calendar")}</Link>}
           <button className="btn btn-primary" onClick={() => setModal({ kind: 'edit' })}>{t("Edit apartment")}</button>
@@ -63,13 +63,13 @@ export default function UnitDetailPage() {
 
       <div className="grid g-2-1">
         <div className="card card-flush">
-          <div className="card-head"><div className="card-title">{u.mode === 'PARTITIONS' ? t("Partitions & beds") : t("Tenancies")}</div></div>
+          <div className="card-head"><div className="card-title">{u.mode === 'PARTITIONS' ? t("Rooms & beds") : t("Tenancies")}</div></div>
           <div className="table-wrap">
             {u.mode === 'PARTITIONS' ? (
               <table className="table">
                 <thead><tr><th>{t("Code")}</th><th>{t("Status")}</th><th>{t("Tenant")}</th><th className="num">{t("Rent")}</th><th></th></tr></thead>
                 <tbody>
-                  {u.spaces.length === 0 && <tr><td colSpan={5} className="muted">{t("No partitions yet.")}</td></tr>}
+                  {u.spaces.length === 0 && <tr><td colSpan={5} className="muted">{t("No rooms yet.")}</td></tr>}
                   {[...u.spaces].sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true })).map(s => {
                     const l = s.leases[0];
                     return (
@@ -155,7 +155,7 @@ export default function UnitDetailPage() {
           onSubmit={async v => { await api.patch(`/units/${u.id}`, v); toast(t("Saved")); setModal(null); reload(); }} />
       )}
       {modal?.kind === 'space' && (
-        <FormModal title={t("Add partition / bed")} fields={spaceFields} onClose={() => setModal(null)}
+        <FormModal title={t("Add room / bed")} fields={spaceFields} onClose={() => setModal(null)}
           onSubmit={async v => { await api.post('/spaces', { ...v, unitId: u.id }); toast(t("Added")); setModal(null); reload(); }} />
       )}
       {modal?.kind === 'editSpace' && (

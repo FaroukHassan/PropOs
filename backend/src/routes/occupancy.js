@@ -68,7 +68,7 @@ crudRouter({
     const spaceId = data.spaceId !== undefined ? data.spaceId : existing?.spaceId;
     if (spaceId) {
       const space = await prisma.space.findUnique({ where: { id: spaceId } });
-      if (space.unitId !== unitId) throw new HttpError(422, 'That partition is not in this apartment');
+      if (space.unitId !== unitId) throw new HttpError(422, 'That room is not in this apartment');
       // Only one active tenancy per space
       const status = data.status || existing?.status || 'ACTIVE';
       if (status !== 'ENDED') {
@@ -153,11 +153,11 @@ crudRouter({
     if (spaceId) {
       // A partition can be let as a holiday stay (e.g. Azizi Riviera 920, or a partition reserved for holiday use)
       const space = await prisma.space.findUnique({ where: { id: spaceId } });
-      if (space.unitId !== unitId) throw new HttpError(422, 'That partition is not in this apartment');
+      if (space.unitId !== unitId) throw new HttpError(422, 'That room is not in this apartment');
       const tenant = await prisma.lease.findFirst({ where: { spaceId, status: { in: ['ACTIVE', 'NOTICE'] } }, include: { tenant: true } });
       if (tenant) throw new HttpError(409, `${space.code} has a monthly tenant (${tenant.tenant.name})`);
     } else if (unit.mode !== 'HOLIDAY') {
-      throw new HttpError(422, 'Choose a partition, or make the apartment a holiday home');
+      throw new HttpError(422, 'Choose a room, or make the apartment a holiday home');
     }
     if (!['CANCELLED', 'INQUIRY'].includes(status)) {
       // Whole-apartment bookings clash with everything in that apartment; partition bookings clash with the same partition or a whole-apartment booking

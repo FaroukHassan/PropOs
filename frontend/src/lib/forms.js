@@ -93,7 +93,7 @@ export const leaseFields = ({ units, tenants, fixedUnit, fixedSpace }) => [
   { name: 'newPhone', label: t("New tenant phone"), show: v => v.tenantId === '__new' },
   ...(fixedUnit ? [] : [{ name: 'unitId', label: t("Apartment"), type: 'select', required: true, options: unitOptions(units, u => u.mode !== 'HOLIDAY'), onChange: () => ({ spaceId: '' }) }]),
   ...(fixedSpace ? [] : [{
-    name: 'spaceId', label: t("Partition / bed"), type: 'select', options: v => spaceOptions(units, v.unitId || fixedUnit?.id, s => s.status !== 'OCCUPIED'),
+    name: 'spaceId', label: t("Room / bed"), type: 'select', options: v => spaceOptions(units, v.unitId || fixedUnit?.id, s => s.status !== 'OCCUPIED'),
     hint: t("Leave empty for a whole-apartment (long-term) lease"),
     onChange: (spaceId, v) => {
       const s = (units || []).flatMap(u => u.spaces || []).find(x => x.id === spaceId);
@@ -120,7 +120,7 @@ export const transactionFields = ({ units, preset = {} }) => [
   { name: 'description', label: t("Description"), required: true, full: true, default: preset.description, placeholder: t("Rent collection, DEWA - Apt 2803…") },
   { name: 'method', label: t("Paid by"), type: 'select', required: true, options: options(L.method), default: 'CASH' },
   { name: 'unitId', label: t("Apartment"), type: 'select', options: unitOptions(units), default: preset.unitId, placeholder: t("Company-wide (no apartment)"), onChange: () => ({ spaceId: '' }) },
-  { name: 'spaceId', label: t("Partition / bed"), type: 'select', options: v => spaceOptions(units, v.unitId), default: preset.spaceId, show: v => !!v.unitId },
+  { name: 'spaceId', label: t("Room / bed"), type: 'select', options: v => spaceOptions(units, v.unitId), default: preset.spaceId, show: v => !!v.unitId },
   { name: 'periodMonth', label: t("Rent for month"), type: 'month', default: preset.periodMonth || monthKey(), show: v => v.category === 'RENT', hint: t("Which month this rent covers") },
   { name: 'estimated', label: t("Amount is estimated (check the receipt later)"), type: 'checkbox', full: true },
   { name: 'notes', label: t("Notes"), type: 'textarea' },
@@ -144,10 +144,10 @@ export const chequeFields = ({ units, landlords, leases }) => [
 // units: holiday homes plus any apartment that has partitions let as holiday stays
 export const bookingFields = ({ units }) => [
   { name: 'unitId', label: t("Apartment"), type: 'select', required: true, options: unitOptions(units), onChange: () => ({ spaceId: '' }) },
-  { name: 'spaceId', label: t("Partition"), type: 'select', placeholder: t("Whole apartment"),
+  { name: 'spaceId', label: t("Room"), type: 'select', placeholder: t("Whole apartment"),
     options: v => ((units || []).find(u => u.id === v.unitId)?.spaces || []).filter(s => s.status !== 'OCCUPIED').map(s => ({ value: s.id, label: s.code })),
     show: v => ((units || []).find(u => u.id === v.unitId)?.spaces || []).length > 0,
-    hint: t("For holiday-home partitions such as Azizi Riviera 920") },
+    hint: t("For holiday-home rooms such as Azizi Riviera 920") },
   { name: 'channel', label: t("Channel"), type: 'select', required: true, options: options(L.channel), default: 'AIRBNB' },
   { name: 'guestName', label: t("Guest name"), required: true },
   { name: 'guestPhone', label: t("Guest phone") },
@@ -165,7 +165,7 @@ export const bookingFields = ({ units }) => [
 
 export const maintenanceFields = ({ units }) => [
   { name: 'unitId', label: t("Apartment"), type: 'select', required: true, options: unitOptions(units) },
-  { name: 'spaceCode', label: t("Partition (optional)"), placeholder: 'P4' },
+  { name: 'spaceCode', label: t("Room (optional)"), placeholder: 'P4' },
   { name: 'title', label: t("Problem"), required: true, full: true, placeholder: t("AC not cooling") },
   { name: 'category', label: t("Category"), type: 'select', required: true, options: options(L.maintCategory), default: 'GENERAL' },
   { name: 'priority', label: t("Priority"), type: 'select', required: true, options: options(L.priority), default: 'NORMAL' },

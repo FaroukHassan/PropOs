@@ -38,7 +38,7 @@ export default function TenantsPage() {
         {can.write && <button className="btn btn-primary" onClick={() => setModal({})}>{t("+ Tenant")}</button>}
       </div>
       {loading && !data ? <Spinner /> : rows.length === 0 ? (
-        <Empty icon="☺" title={q ? t("No match") : t("No tenants yet")}>{t("Tenants are added when you move someone into a partition on the Partitions board.")}</Empty>
+        <Empty icon="☺" title={q ? t("No match") : t("No tenants yet")}>{t("Tenants are added when you move someone into a room on the Rooms board.")}</Empty>
       ) : (
         <div className="card card-flush">
           <div className="table-wrap">

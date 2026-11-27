@@ -8,12 +8,12 @@ import { Tabs, Badge, useToast } from '../components/ui';
 
 const KINDS = {
   spaces: {
-    label: t("Partitions availability"),
+    label: t("Rooms availability"),
     help: t("From \"Sakanly – Partitions Availability\" or the monthly availability sheet. Needs BUILDING, FLAT NO., PARTITION NUMBER and PRICE columns. Creates any missing buildings and flats; running it again updates prices and statuses."),
   },
   transactions: {
     label: t("Income & expenses"),
-    help: t("From a Transaction Log or bank sheet. Needs Date, Type (INCOME / EXPENSE), Amount, and ideally Category, Description, Apartment and Partition. Rent is linked to the tenant when the partition matches."),
+    help: t("From a Transaction Log or bank sheet. Needs Date, Type (INCOME / EXPENSE), Amount, and ideally Category, Description, Apartment and Room. Rent is linked to the tenant when the room matches."),
   },
   cheques: {
     label: t("Cheques"),

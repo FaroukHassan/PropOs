@@ -6,7 +6,7 @@ import { useScope } from '../lib/scope';
 import { useApi, useSticky } from '../lib/hooks';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
-import { money, date, L, today, isoDay, monthKey } from '../lib/format';
+import { money, date, L, today, isoDay, monthKey, roomName, initials } from '../lib/format';
 import { spaceFields, leaseFields, transactionFields } from '../lib/forms';
 import { Spinner, ErrorBox, Empty, Drawer, FormModal, Badge, Tabs, Modal, useToast } from '../components/ui';
 import PhotoManager, { PhotoCount } from '../components/PhotoManager';
@@ -22,7 +22,7 @@ function availabilityText(buildings) {
     for (const { u, free } of units) {
       for (const s of free) {
         const when = !s.availableFrom || isoDay(s.availableFrom) <= today() ? 'Ready to move' : `From ${date(s.availableFrom)}`;
-        lines.push(`• Flat ${u.number} ${s.code} — AED ${s.monthlyRate.toLocaleString()} · ${L.occupancy[u.occupancy]}${s.amenities ? ` · ${s.amenities}` : ''} · ${when}`);
+        lines.push(`• Flat ${u.number} · ${roomName(s.code)} — AED ${s.monthlyRate.toLocaleString()} · ${L.occupancy[u.occupancy]}${s.amenities ? ` · ${s.amenities}` : ''} · ${when}`);
       }
     }
     lines.push('');
@@ -80,14 +80,14 @@ export default function PartitionsPage() {
         <button className="btn" onClick={copyList}>{t("Copy available list for WhatsApp")}</button>
       </div>
       <div className="legend" style={{ marginBottom: 18 }}>
-        <span><i className="s-AVAILABLE" />{t("Available")}</span><span><i className="s-OCCUPIED" />{t("Occupied")}</span>
-        <span><i className="s-RESERVED" />{t("Reserved")}</span><span><i className="s-NOT_READY" />{t("Not ready")}</span>
+        <span><i className="dot-AVAILABLE" />{t("Available")}</span><span><i className="dot-OCCUPIED" />{t("Occupied")}</span>
+        <span><i className="dot-RESERVED" />{t("Reserved")}</span><span><i className="dot-NOT_READY" />{t("Not ready")}</span>
         <span className="faint">{t("Occupancy")} {tx.spaces ? Math.round((tx.occupied / tx.spaces) * 100) : 0}%</span>
       </div>
 
       {data.buildings.length === 0 && (
-        <Empty icon="▦" title={t("No partition apartments yet")} action={<Link className="btn btn-primary" to="/import">{t("Import from your sheet")}</Link>}>
-          {t("Add apartments under Apartments (set \"How it is rented\" to Partitions), or import your availability sheet.")}
+        <Empty icon="▦" title={t("No room apartments yet")} action={<Link className="btn btn-primary" to="/import">{t("Import from your sheet")}</Link>}>
+          {t("Add apartments under Apartments (set \"How it is rented\" to Rooms), or import your availability sheet.")}
         </Empty>
       )}
 
@@ -98,25 +98,47 @@ export default function PartitionsPage() {
           <h2>{b.name} <span className="small faint">{b.area}</span></h2>
           <div className="board-units">
             {b.units.map(u => {
-              const occupied = u.spaces.filter(s => s.status === 'OCCUPIED');
+              const total = (u.allSpaces || u.spaces).length;
+              const let_ = (u.allSpaces || u.spaces).filter(s => s.status === 'OCCUPIED').length;
               return (
                 <div key={u.id} className="board-unit">
                   <div className="board-unit-head">
-                    <div><Link to={`/units/${u.id}`} className="apt" style={{ textDecoration: 'none' }}>{t("Flat")} {u.number}</Link> <Badge tone={u.occupancy === 'LADIES' ? 'violet' : ''}>{L.occupancy[u.occupancy]}</Badge></div>
-                    <div className="row" style={{ gap: 8 }}><PhotoCount photos={u.photos} onClick={() => setPhotosOf({ unit: u })} /><span className="small muted">{filter === 'ALL' ? `${occupied.length}/${u.spaces.length}` : ''}</span></div>
+                    <div className="bu-title">
+                      <Link to={`/units/${u.id}`} className="apt">{t("Flat")} {u.number}</Link>
+                      <Badge tone={u.occupancy === 'LADIES' ? 'violet' : ''}>{L.occupancy[u.occupancy]}</Badge>
+                    </div>
+                    <PhotoCount photos={u.photos} onClick={() => setPhotosOf({ unit: u })} />
                   </div>
-                  <div className="spaces">
-                    {u.spaces.map(s => (
-                      <button key={s.id} className={`space s-${s.status}`} onClick={() => setOpen({ space: s, unit: u, building: b })} title={s.amenities || ''}>
-                        <div className="code">{s.code}</div>
-                        <div className="who">{s.lease ? s.lease.tenant.name : L.spaceStatus[s.status]}</div>
-                        <div className="price">{num0(s.lease ? s.lease.rent : s.monthlyRate)}</div>
-                      </button>
-                    ))}
+                  <div className="bu-occ">
+                    <div className="bu-bar"><i style={{ width: `${total ? (let_ / total) * 100 : 0}%` }} /></div>
+                    <span>{t("{0} of {1} rooms let", [let_, total])}</span>
+                  </div>
+                  <div className="rooms">
+                    {u.spaces.map(s => {
+                      const tenant = s.lease?.tenant?.name;
+                      const free = s.status === 'AVAILABLE' || s.status === 'RESERVED';
+                      const ready = !s.availableFrom || isoDay(s.availableFrom) <= today();
+                      return (
+                        <button key={s.id} className={`room-tile st-${s.status}`} onClick={() => setOpen({ space: s, unit: u, building: b })} title={s.amenities || ''}>
+                          <div className="rt-top">
+                            <span className="rt-name">{s.kind === 'BED' && <BedIcon />}{roomName(s.code)}</span>
+                            <span className="rt-status">{L.spaceStatus[s.status]}</span>
+                          </div>
+                          <div className="rt-who">
+                            {tenant
+                              ? <><span className="rt-av">{initials(tenant)}</span><span className="rt-tenant">{tenant}</span></>
+                              : <span className="rt-note">{free ? (ready ? t("Ready to move in") : `${t("From")} ${date(s.availableFrom)}`) : t("Being prepared")}</span>}
+                          </div>
+                          <div className="rt-foot">
+                            <span className="rt-price">{num0(s.lease ? s.lease.rent : s.monthlyRate)}<small>{t("/mo")}</small></span>
+                            {s.lease?.endDate && <span className="rt-until">{t("until")} {date(s.lease.endDate)}</span>}
+                          </div>
+                        </button>
+                      );
+                    })}
                     {can.write && filter === 'ALL' && (
-                      <button className="space" style={{ borderStyle: 'dashed', borderColor: 'var(--line-2)', color: 'var(--text-3)' }}
-                        onClick={() => setModal({ kind: 'addSpace', unit: u })}>
-                        <div className="code">{t("+ Add")}</div><div className="who">{t("partition / bed")}</div>
+                      <button className="room-tile rt-add" onClick={() => setModal({ kind: 'addSpace', unit: u })}>
+                        <span className="rt-plus">+</span><span>{t("Add room / bed")}</span>
                       </button>
                     )}
                   </div>
@@ -143,8 +165,8 @@ export default function PartitionsPage() {
           onClose={() => setModal(null)} onSubmit={async () => setModal(null)} submitLabel={t("Done")} />
       )}
       {modal?.kind === 'addSpace' && (
-        <FormModal title={t("Add partition to Flat {0}", [modal.unit.number])} fields={spaceFields} onClose={() => setModal(null)}
-          onSubmit={async v => { await api.post('/spaces', { ...v, unitId: modal.unit.id }); toast(t("Partition added")); setModal(null); reload(); }} />
+        <FormModal title={t("Add room to Flat {0}", [modal.unit.number])} fields={spaceFields} onClose={() => setModal(null)}
+          onSubmit={async v => { await api.post('/spaces', { ...v, unitId: modal.unit.id }); toast(t("Room added")); setModal(null); reload(); }} />
       )}
       {modal?.kind === 'editSpace' && (
         <FormModal title={t("Edit {0}", [modal.space.code])} fields={spaceFields.map(f => f.name === 'status' && modal.space.status === 'OCCUPIED' ? { ...f, options: Object.entries(L.spaceStatus).map(([value, label]) => ({ value, label })) } : f)}
@@ -261,4 +283,8 @@ function AvailableGallery({ buildings, filter, onOpen }) {
       ))}
     </div>
   );
+}
+
+function BedIcon() {
+  return <svg className="rt-bed" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden><path d="M3 18V7M3 13h18v5M21 13a3 3 0 0 0-3-3h-7v3M7 11.5a1.5 1.5 0 1 0 0-.01" /></svg>;
 }

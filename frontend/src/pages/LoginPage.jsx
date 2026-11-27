@@ -24,9 +24,9 @@ export default function LoginPage() {
       <div className="login-side">
         <div className="row-between"><div className="brand-lockup"><img className="brand-logo lg" src={`${import.meta.env.BASE_URL}brand/logo-white.png`} alt={t('Sakanly Real Estate')} /><span className="brand-tag">{t('Real Estate')}</span></div><LangSwitch dark /></div>
         <div>
-          <h1>{t("Every partition, booking and cheque.")} <em>{t("One place.")}</em></h1>
+          <h1>{t("Every room, booking and cheque.")} <em>{t("One place.")}</em></h1>
           <p className="login-blurb" style={{ color: '#aab4c9', marginTop: 14, maxWidth: 420 }}>
-            {t("The operating system for Sakanly Real Estate: partitions board, rent collection, holiday bookings, cheques and owner statements.")}
+            {t("The operating system for Sakanly Real Estate: rooms board, rent collection, holiday bookings, cheques and owner statements.")}
           </p>
           <p className="slogan" style={{ color: 'var(--sand)', marginTop: 18, fontSize: 20, fontWeight: 600 }}>{t('Your home, evolved.')}</p>
           <p className="ar" dir={isAr ? 'ltr' : 'rtl'} style={{ color: '#8d99b3', marginTop: 4, fontSize: 14 }}>{isAr ? 'Sakanly Real Estate · Your home, evolved.' : 'سكنلي للعقارات · بيتك… بمفهوم متطوّر.'}</p>

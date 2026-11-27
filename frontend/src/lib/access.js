@@ -3,7 +3,7 @@
 // none / view / edit per section, set by a super admin under Settings → Team.
 export const SECTIONS = ['dashboard', 'partitions', 'apartments', 'bookings', 'leasing', 'tenants', 'landlords', 'rent', 'ledger', 'invoices', 'cheques', 'reports', 'maintenance', 'marketing', 'import'];
 export const SECTION_LABEL = {
-  dashboard: 'Dashboard', partitions: 'Partitions board', apartments: 'Apartments', bookings: 'Holiday bookings',
+  dashboard: 'Dashboard', partitions: 'Rooms board', apartments: 'Apartments', bookings: 'Holiday bookings',
   leasing: 'Leasing deals', tenants: 'Tenants', landlords: 'Landlords & owners', rent: 'Rent collection',
   ledger: 'Income & expenses', invoices: 'Invoices', cheques: 'Cheques', reports: 'Reports', maintenance: 'Maintenance', marketing: 'Marketing', import: 'Import from sheets',
 };

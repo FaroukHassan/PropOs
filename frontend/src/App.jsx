@@ -33,7 +33,7 @@ import MarketingPage from './pages/MarketingPage';
 
 const NAV = [
   ['Overview', [['/dashboard', '◧', 'Dashboard']]],
-  ['Properties', [['/partitions', '▦', 'Partitions board'], ['/units', '⌂', 'Apartments'], ['/bookings', '☾', 'Holiday bookings']]],
+  ['Properties', [['/partitions', '▦', 'Rooms board'], ['/units', '⌂', 'Apartments'], ['/bookings', '☾', 'Holiday bookings']]],
   ['Leasing', [['/leasing', '◆', 'Leasing deals']]],
   ['Marketing', [['/marketing', '▶', 'Media library']]],
   ['People', [['/tenants', '☺', 'Tenants'], ['/landlords', '⚿', 'Landlords & owners']]],

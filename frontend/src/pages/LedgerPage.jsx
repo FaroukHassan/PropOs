@@ -40,7 +40,7 @@ export default function LedgerPage() {
         <input className="input input-sm" placeholder={t("Search")} value={q} onChange={e => setQ(e.target.value)} style={{ width: 150 }} />
         <div className="grow" />
         <button className="btn" onClick={() => downloadCsv(`ledger-${period.month || `${period.from}_to_${period.to}`}.csv`, rows.map(tx => ({
-          Date: isoDay(tx.date), Type: tx.type, Category: L.category[tx.category], Description: tx.description, Apartment: tx.unit ? unitName(tx.unit) : '', Partition: tx.space?.code || '',
+          Date: isoDay(tx.date), Type: tx.type, Category: L.category[tx.category], Description: tx.description, Apartment: tx.unit ? unitName(tx.unit) : '', Room: tx.space?.code || '',
           Tenant: tx.lease?.tenant?.name || '', Amount: tx.amount, Method: L.method[tx.method], Estimated: tx.estimated ? 'yes' : '', Notes: tx.notes || '',
         })))}>{t("Export")}</button>
         {can.write && <>

@@ -37,14 +37,19 @@ export const shiftMonth = (key, n) => {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
 };
 export const daysUntil = d => Math.round((new Date(d) - new Date(today())) / 86400000);
+// "P5" → "Room 5" (Arabic: "غرفة 5"); beds and other codes stay as they are
+export const roomName = code => {
+  const m = /^P\s*(\d+)$/i.exec(String(code || '').trim());
+  return m ? t('Room {0}', [m[1]]) : (code || '');
+};
 export const initials = name => (name || '?').split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
 
 // ─── Labels for every enum the API uses ─────────────────────────────────────
 export const L = {
-  mode: { PARTITIONS: 'Partitions / beds', HOLIDAY: 'Holiday home', LONG_TERM: 'Long-term' },
+  mode: { PARTITIONS: 'Rooms / beds', HOLIDAY: 'Holiday home', LONG_TERM: 'Long-term' },
   arrangement: { MASTER_LEASE: 'Leased from landlord', MANAGEMENT: 'Managed for owner', OWNED: 'Owned' },
   occupancy: { MIX: 'Mixed', LADIES: 'Ladies only', MEN: 'Men only', FAMILY: 'Family' },
-  spaceKind: { PARTITION: 'Partition', BED: 'Bed', ROOM: 'Room', STUDIO: 'Studio' },
+  spaceKind: { PARTITION: 'Room', BED: 'Bed', ROOM: 'Private room', STUDIO: 'Studio' },
   spaceStatus: { AVAILABLE: 'Available', RESERVED: 'Reserved', OCCUPIED: 'Occupied', NOT_READY: 'Not ready' },
   leaseStatus: { ACTIVE: 'Active', NOTICE: 'Leaving (notice)', ENDED: 'Ended' },
   contractStatus: { DRAFT: 'Awaiting signatures', SIGNED: 'Signed', VOID: 'Void' },
