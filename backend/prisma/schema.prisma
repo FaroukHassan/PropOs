@@ -105,6 +105,9 @@ model Unit {
   amenities     String?
   notes         String?
   active        Boolean      @default(true)
+  onWebsite     Boolean      @default(true)  // listed on sakanly.com when it has something available
+  airbnbUrl     String?
+  bookingUrl    String?
   spaces        Space[]
   leases        Lease[]
   bookings      Booking[]

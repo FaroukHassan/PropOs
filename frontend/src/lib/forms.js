@@ -40,6 +40,9 @@ export const unitFields = (buildings, landlords) => [
   { name: 'dewaAccount', label: t("DEWA account no.") },
   { name: 'amenities', label: t("Amenities / selling points"), full: true, placeholder: t("Private fridge, balcony, gym, pool") },
   { name: 'notes', label: t("Notes"), type: 'textarea' },
+  { name: 'airbnbUrl', label: t("Airbnb link"), full: true, show: v => v.mode === 'HOLIDAY', placeholder: 'https://www.airbnb.com/rooms/…' },
+  { name: 'bookingUrl', label: t("Booking.com link"), full: true, show: v => v.mode === 'HOLIDAY', placeholder: 'https://www.booking.com/hotel/…' },
+  { name: 'onWebsite', label: t("Show on sakanly.com (available rooms and holiday homes)"), type: 'checkbox', default: true, full: true },
   { name: 'active', label: t("Active (uncheck when you hand the apartment back)"), type: 'checkbox', default: true, full: true },
 ];
 

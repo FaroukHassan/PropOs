@@ -560,3 +560,22 @@ test('invoices: VAT, numbering, payments into the ledger, bills from suppliers',
   assert.equal(d.body.state, 'DRAFT');
   assert.equal((await call('DELETE', `/api/invoices/${d.body.id}`)).status, 204);
 });
+
+test('website: public rooms and homes without tenant data, enquiries become leads', async () => {
+  const rooms = await call('GET', '/api/public/site/rooms', null, null);
+  assert.equal(rooms.status, 200);
+  assert.ok(rooms.body.length > 0);
+  const r = rooms.body[0];
+  assert.ok(r.price > 0 && r.building && r.buildingSlug);
+  assert.ok(!('tenant' in r) && !('leases' in r));
+  const homes = await call('GET', '/api/public/site/homes', null, null);
+  assert.equal(homes.status, 200);
+  assert.equal((await call('POST', '/api/public/site/leads', { type: 'shared', name: 'A' }, null)).status, 422);
+  const ok = await call('POST', '/api/public/site/leads', { type: 'shared', name: 'Mona Website', phone: '+971 50 123 4567', details: { building: 'Al Fahd 2', room: 'P3', moveIn: '2026-12-01' }, page: '/shared-living', lang: 'ar' }, null);
+  assert.equal(ok.status, 201);
+  const lead = (await call('GET', '/api/leasing?q=Mona')).body.find(d => d.clientName === 'Mona Website');
+  assert.equal(lead.status, 'LEAD');
+  assert.equal(lead.source, 'Website');
+  assert.match(lead.notes, /Shared living/);
+  assert.equal((await call('POST', '/api/public/site/leads', { name: 'Bot', phone: '000000000', website: 'spam' }, null)).status, 200, 'honeypot is ignored quietly');
+});

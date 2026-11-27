@@ -1,5 +1,8 @@
 // frontend/src/lib/ar.js — Arabic text for every English string on screen (see i18n.js)
 export default {
+ "Airbnb link": "رابط Airbnb",
+ "Booking.com link": "رابط Booking.com",
+ "Show on sakanly.com (available rooms and holiday homes)": "إظهار على موقع sakanly.com (الغرف المتاحة وبيوت العطلات)",
  "Invoices we issue": "فواتير نصدرها",
  "Supplier bills": "فواتير الموردين",
  "Search name or number": "ابحث بالاسم أو الرقم",

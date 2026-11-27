@@ -37,6 +37,7 @@ const unitSpec = {
   bedrooms: 'int', bathrooms: 'int', occupancy: 'enum',
   nightlyRate: 'number', monthlyRent: 'number',
   dewaAccount: 'string', amenities: 'string', notes: 'string', active: 'bool',
+  onWebsite: 'bool', airbnbUrl: 'string', bookingUrl: 'string',
 };
 
 const unitsRouter = express.Router();

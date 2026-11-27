@@ -30,6 +30,7 @@ app.get('/health', (req, res) => res.json({ status: 'ok', ts: new Date() }));
 
 app.use('/api/auth', require('./routes/auth'));
 const contracts = require('./routes/contracts');
+app.use('/api/public/site', require('./routes/website')); // sakanly.com: availability + enquiries
 app.use('/api/public', contracts.pub); // tenant signing links, no login
 
 const api = express.Router();
