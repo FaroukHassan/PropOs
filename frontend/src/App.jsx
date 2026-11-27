@@ -41,7 +41,7 @@ const TITLES = Object.fromEntries(NAV.flatMap(([, items]) => items.map(([to, , l
 // Screens the apartment filter doesn't apply to
 const NO_SCOPE = ['/landlords', '/import', '/settings', '/leasing'];
 // Phone bottom bar: the four screens the team opens most; everything else is under "More".
-const TABBAR = [['/dashboard', '◧', 'Home'], ['/partitions', '▦', 'Partitions'], ['/rent', '✓', 'Rent'], ['/cheques', '✎', 'Cheques']];
+const TABBAR = [['/dashboard', '◧', 'Home'], ['/partitions', '▦', 'Properties'], ['/rent', '✓', 'Rent'], ['/cheques', '✎', 'Cheques']];
 
 function Sidebar({ open, onNavigate }) {
   const { user, logout, can } = useAuth();
