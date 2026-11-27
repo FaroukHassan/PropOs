@@ -9,6 +9,7 @@ import { usePeriod, PeriodPicker } from '../lib/period';
 import { money, date, shortDate, isoDay, today, pct, L, options, downloadCsv, daysUntil } from '../lib/format';
 import { dealFields } from '../lib/forms';
 import { Spinner, ErrorBox, Empty, FormModal, Badge, Drawer, Stat, Tabs, useToast } from '../components/ui';
+import LeasingAvailability from '../components/LeasingAvailability';
 
 const STAGES = ['LEAD', 'VIEWING', 'RESERVED', 'SIGNED', 'CANCELLED'];
 const NEXT = { LEAD: 'VIEWING', VIEWING: 'RESERVED', RESERVED: 'SIGNED' };
@@ -48,11 +49,24 @@ export default function LeasingPage() {
     setModal(null); reload();
   };
 
+  const tabs = <Tabs value={view} onChange={setView} items={[['board', t('Pipeline')], ['list', t('List')], ['agents', t('Agents')], ['availability', t('Availability')]]} />;
+  if (view === 'availability') {
+    return (
+      <>
+        <div className="toolbar">{tabs}</div>
+        <LeasingAvailability onNewDeal={can.write ? initial => setModal({ kind: 'deal', initial }) : null} />
+        {modal?.kind === 'deal' && (
+          <FormModal wide title={t('New leasing deal')} fields={dealFields({ agents })} initial={modal.initial} onClose={() => setModal(null)} onSubmit={v => save(v)} />
+        )}
+      </>
+    );
+  }
+
   return (
     <>
       <div className="toolbar">
         <PeriodPicker />
-        <Tabs value={view} onChange={setView} items={[['board', t('Pipeline')], ['list', t('List')], ['agents', t('Agents')]]} />
+        {tabs}
       </div>
       <div className="toolbar">
         <Tabs value={type} onChange={setType} items={[['', t('All contracts')], ['SHORT_TERM', t('Short term')], ['YEARLY', t('Yearly')]]} />

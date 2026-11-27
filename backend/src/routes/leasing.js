@@ -128,6 +128,96 @@ router.get('/options', ah(async (req, res) => {
   res.json({ agents: agents.map(a => a.agent).sort(), sources: sources.map(s => s.source).sort() });
 }));
 
+
+// ─── Availability for leasing ────────────────────────────────────────────────
+// Every room, bed and whole flat with what keeps it busy over the next 12 months, and whether it is
+// free for the stay the client wants (move-in date + 1 to 12 months).
+const DAY = 86400000;
+const startOfDay = d => { const x = new Date(d); x.setUTCHours(0, 0, 0, 0); return x; };
+const addMonths = (d, n) => { const x = new Date(d); x.setUTCMonth(x.getUTCMonth() + n); return x; };
+const FAR = new Date('2100-01-01T00:00:00Z');
+
+// Merge busy spans, then find when the place is next free and until when
+function freeWindow(busy, from) {
+  const spans = busy.map(b => [new Date(b.start).getTime(), new Date(b.end || FAR).getTime()]).sort((a, b) => a[0] - b[0]);
+  let at = from.getTime();
+  for (const [s, e] of spans) if (s <= at && e > at) at = e; // walk past spans covering "at" (sorted)
+  // a later span may now cover the new start
+  let moved = true;
+  while (moved) { moved = false; for (const [s, e] of spans) if (s <= at && e > at) { at = e; moved = true; } }
+  const next = spans.filter(([s]) => s > at).map(([s]) => s).sort((a, b) => a - b)[0];
+  return { freeFrom: at >= FAR.getTime() ? null : new Date(at), freeUntil: next ? new Date(next) : null };
+}
+const overlaps = (busy, a, b) => busy.some(x => new Date(x.start) < b && new Date(x.end || FAR) > a);
+
+router.get('/availability', ah(async (req, res) => {
+  const orgId = req.user.orgId;
+  const now = startOfDay(new Date());
+  const from = req.query.from && !isNaN(new Date(req.query.from)) ? startOfDay(req.query.from) : now;
+  const months = Math.min(12, Math.max(1, parseInt(req.query.months, 10) || 1));
+  const to = addMonths(from, months);
+  const horizonStart = new Date(Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), 1));
+  const horizonEnd = addMonths(horizonStart, 12);
+
+  const units = await prisma.unit.findMany({
+    where: { orgId, active: true },
+    include: {
+      building: { select: { id: true, name: true, area: true } },
+      spaces: true,
+      leases: { where: { status: { in: ['ACTIVE', 'NOTICE'] } }, select: { spaceId: true, startDate: true, endDate: true, status: true, rent: true, rentPeriod: true } },
+      bookings: { where: { status: { in: ['CONFIRMED', 'CHECKED_IN'] }, checkOut: { gt: now } }, select: { spaceId: true, checkIn: true, checkOut: true } },
+      photos: { select: { id: true, spaceId: true, kind: true }, orderBy: [{ cover: 'desc' }, { sort: 'asc' }] },
+    },
+  });
+
+  const items = [];
+  const push = (u, s, busy, extra) => {
+    const clip = busy.filter(b => new Date(b.end || FAR) > horizonStart && new Date(b.start) < horizonEnd);
+    const { freeFrom, freeUntil } = freeWindow(busy, from > now ? now : from);
+    const win = freeWindow(busy, from);
+    const pics = u.photos.filter(p => p.kind === 'PHOTO' && (!s || p.spaceId === s.id || !p.spaceId));
+    items.push({
+      id: s ? s.id : u.id, unitId: u.id, spaceId: s?.id || null,
+      building: u.building, unit: { number: u.number, mode: u.mode, occupancy: u.occupancy, bedrooms: u.bedrooms, bathrooms: u.bathrooms },
+      code: s?.code || null, amenities: s?.amenities || u.amenities || null,
+      status: s?.status || null,
+      freeFrom, freeUntil, // from today
+      freeForPeriod: !overlaps(busy, from, to),
+      freeInPeriodFrom: win.freeFrom && win.freeFrom < to ? win.freeFrom : null, // first day free on or after the move-in date, inside the stay
+      busy: clip.map(b => ({ start: b.start, end: b.end, kind: b.kind })),
+      photos: pics.length, cover: pics[0]?.id || null,
+      ...extra,
+    });
+  };
+
+  for (const u of units) {
+    const leaseSpan = l => ({ start: l.startDate, end: l.endDate, kind: l.status === 'NOTICE' ? 'notice' : 'lease' });
+    const bookSpan = b => ({ start: b.checkIn, end: b.checkOut, kind: 'booking' });
+    if (u.mode === 'PARTITIONS') {
+      for (const s of u.spaces) {
+        const busy = [
+          ...u.leases.filter(l => l.spaceId === s.id).map(leaseSpan),
+          ...u.bookings.filter(b => b.spaceId === s.id || !b.spaceId).map(bookSpan),
+        ];
+        const hasLease = busy.some(b => b.kind !== 'booking');
+        if (s.status === 'NOT_READY') busy.push({ start: now, end: s.availableFrom && s.availableFrom > now ? s.availableFrom : null, kind: 'preparing' });
+        else if (s.status === 'RESERVED' && !hasLease) busy.push({ start: now, end: s.availableFrom && s.availableFrom > now ? s.availableFrom : addMonths(now, 1), kind: 'reserved' });
+        else if (s.status === 'OCCUPIED' && !hasLease) busy.push({ start: now, end: s.availableFrom && s.availableFrom > now ? s.availableFrom : null, kind: 'lease' });
+        else if (s.availableFrom && s.availableFrom > now) busy.push({ start: now, end: s.availableFrom, kind: 'preparing' });
+        push(u, s, busy, { kind: s.kind === 'BED' ? 'BED' : s.kind === 'STUDIO' ? 'STUDIO' : 'ROOM', price: s.monthlyRate, deposit: s.deposit, priceUnit: 'month' });
+      }
+    } else {
+      const busy = [...u.leases.filter(l => !l.spaceId).map(leaseSpan), ...u.bookings.filter(b => !b.spaceId).map(bookSpan)];
+      const holiday = u.mode === 'HOLIDAY';
+      const lease = u.leases.find(l => !l.spaceId);
+      const monthly = u.monthlyRent || (lease ? (lease.rentPeriod === 'YEARLY' || lease.rent > 30000 ? lease.rent / 12 : lease.rent) : null);
+      push(u, null, busy, { kind: holiday ? 'HOLIDAY' : 'FLAT', price: holiday ? u.monthlyRent || null : monthly, nightly: u.nightlyRate || null, deposit: null, priceUnit: 'month' });
+    }
+  }
+  items.sort((a, b) => a.building.name.localeCompare(b.building.name) || a.unit.number.localeCompare(b.unit.number, undefined, { numeric: true }) || String(a.code || '').localeCompare(String(b.code || ''), undefined, { numeric: true }));
+  res.json({ from, to, months, horizonStart, horizonEnd, items });
+}));
+
 router.get('/:id', ah(async (req, res) => {
   const d = await findOwned('leasingDeal', req.params.id, req.user.orgId, { transactions: { orderBy: { date: 'desc' } } });
   res.json(withMoney(d));

@@ -653,3 +653,25 @@ test('marketing: videos (file and link), streaming in pieces, library and access
   assert.equal(perm.required('GET', '/marketing/library').any[0], 'marketing');
   assert.equal(perm.effective({ role: 'MANAGER', permissions: { leasing: 'edit' } }).marketing, 'none');
 });
+
+test('leasing availability: free windows for a move-in date and 1–12 month stays', async () => {
+  const one = await call('GET', '/api/leasing/availability?months=1');
+  assert.equal(one.status, 200);
+  assert.ok(one.body.items.length > 0);
+  const year = (await call('GET', '/api/leasing/availability?months=12')).body;
+  assert.equal(year.months, 12);
+  assert.equal((await call('GET', '/api/leasing/availability?months=99')).body.months, 12, 'capped at a year');
+  // anything free for a year is also free for a month from the same day
+  const freeMonth = new Set(one.body.items.filter(i => i.freeForPeriod).map(i => i.id));
+  for (const i of year.items.filter(i => i.freeForPeriod)) assert.ok(freeMonth.has(i.id), i.id);
+  // an occupied room with an open-ended tenancy is never free
+  const busy = one.body.items.find(i => i.busy.some(b => b.kind === 'lease' && !b.end));
+  if (busy) { assert.equal(busy.freeForPeriod, false); assert.equal(busy.freeFrom, null); }
+  // a room that frees up later shows that date, and is free for a stay that starts then
+  const later = one.body.items.find(i => !i.freeForPeriod && i.freeFrom);
+  if (later) {
+    const from = later.freeFrom.slice(0, 10);
+    const r = (await call('GET', `/api/leasing/availability?months=1&from=${from}`)).body.items.find(i => i.id === later.id);
+    assert.ok(r.freeForPeriod || r.freeUntil, 'free from its free date');
+  }
+});
