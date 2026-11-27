@@ -8,7 +8,9 @@ import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { money, date, L, today, isoDay, monthKey } from '../lib/format';
 import { spaceFields, leaseFields, transactionFields } from '../lib/forms';
-import { Spinner, ErrorBox, Empty, Drawer, FormModal, Badge, Tabs, useToast } from '../components/ui';
+import { Spinner, ErrorBox, Empty, Drawer, FormModal, Badge, Tabs, Modal, useToast } from '../components/ui';
+import PhotoManager, { PhotoCount } from '../components/PhotoManager';
+import { photoUrl } from '../lib/photos';
 
 // WhatsApp-ready list of what is free, like the one the team sends to brokers
 function availabilityText(buildings) {
@@ -38,6 +40,8 @@ export default function PartitionsPage() {
   const tenants = useApi('/tenants');
   const [filter, setFilter] = useSticky('board_filter', 'ALL');
   const [occ, setOcc] = useSticky('board_occ', '');
+  const [view, setView] = useSticky('board_view', 'board');
+  const [photosOf, setPhotosOf] = useState(null); // { unit, space? }
   const [open, setOpen] = useState(null); // { space, unit }
   const [modal, setModal] = useState(null);
 
@@ -45,7 +49,7 @@ export default function PartitionsPage() {
     ...b,
     units: b.units
       .filter(u => !occ || u.occupancy === occ)
-      .map(u => ({ ...u, spaces: u.spaces.filter(s => filter === 'ALL' || s.status === filter) }))
+      .map(u => ({ ...u, allSpaces: u.spaces, spaces: u.spaces.filter(s => filter === 'ALL' || s.status === filter) }))
       .filter(u => u.spaces.length || filter === 'ALL'),
   })).filter(b => b.units.length), [data, filter, occ]);
 
@@ -71,6 +75,7 @@ export default function PartitionsPage() {
           <option value="">{t("Mixed & ladies")}</option>
           {Object.entries(L.occupancy).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
+        <Tabs value={view} onChange={setView} items={[['board', t("Board")], ['photos', t("With photos")]]} />
         <div className="grow" />
         <button className="btn" onClick={copyList}>{t("Copy available list for WhatsApp")}</button>
       </div>
@@ -86,7 +91,9 @@ export default function PartitionsPage() {
         </Empty>
       )}
 
-      {buildings.map(b => (
+      {view === 'photos' && <AvailableGallery buildings={buildings} filter={filter} onOpen={(unit, space) => setPhotosOf({ unit, space })} />}
+
+      {view === 'board' && buildings.map(b => (
         <section key={b.id} className="board-building">
           <h2>{b.name} <span className="small faint">{b.area}</span></h2>
           <div className="board-units">
@@ -96,7 +103,7 @@ export default function PartitionsPage() {
                 <div key={u.id} className="board-unit">
                   <div className="board-unit-head">
                     <div><Link to={`/units/${u.id}`} className="apt" style={{ textDecoration: 'none' }}>{t("Flat")} {u.number}</Link> <Badge tone={u.occupancy === 'LADIES' ? 'violet' : ''}>{L.occupancy[u.occupancy]}</Badge></div>
-                    <div className="small muted">{filter === 'ALL' ? `${occupied.length}/${u.spaces.length}` : ''}</div>
+                    <div className="row" style={{ gap: 8 }}><PhotoCount photos={u.photos} onClick={() => setPhotosOf({ unit: u })} /><span className="small muted">{filter === 'ALL' ? `${occupied.length}/${u.spaces.length}` : ''}</span></div>
                   </div>
                   <div className="spaces">
                     {u.spaces.map(s => (
@@ -119,6 +126,12 @@ export default function PartitionsPage() {
           </div>
         </section>
       ))}
+
+      {photosOf && (
+        <Modal wide title={`${t("Photos")} · ${t("Flat")} ${photosOf.unit.number}${photosOf.space ? ` · ${photosOf.space.code}` : ''}`} onClose={() => setPhotosOf(null)}>
+          <PhotoManager unit={photosOf.unit} spaces={photosOf.unit.allSpaces || photosOf.unit.spaces} focusSpace={photosOf.space?.id} onChanged={refetch} />
+        </Modal>
+      )}
 
       {open && (
         <SpaceDrawer {...open} canWrite={can.write} onClose={() => setOpen(null)}
@@ -217,5 +230,34 @@ function SpaceDrawer({ space, unit, building, onClose, onAction, canWrite }) {
         </>
       )}
     </Drawer>
+  );
+}
+
+// Rooms as photo cards: what a client sees when you send them options
+function AvailableGallery({ buildings, filter, onOpen }) {
+  const cards = buildings.flatMap(b => b.units.flatMap(u => u.spaces
+    .filter(s => filter !== 'ALL' || s.status === 'AVAILABLE' || s.status === 'RESERVED')
+    .map(s => {
+      const own = (u.photos || []).filter(p => p.spaceId === s.id);
+      const shared = (u.photos || []).filter(p => !p.spaceId);
+      return { b, u, s, photos: [...own, ...shared] };
+    })));
+  if (!cards.length) return <Empty icon="▦" title={t("Nothing available with this filter")} />;
+  return (
+    <div className="gallery">
+      {cards.map(({ b, u, s, photos }) => (
+        <article key={s.id} className="gallery-card">
+          <button className={`shot ${photos.length ? '' : 'none'}`} style={photos.length ? { backgroundImage: `url(${photoUrl(photos[0].id, true)})` } : undefined} onClick={() => onOpen(u, s)}>
+            {photos.length ? <span className="n">📷 {photos.length}</span> : t("+ Add photos")}
+          </button>
+          <div className="info">
+            <div className="row-between"><b>{t("Flat")} {u.number} · {s.code}</b><Badge value={s.status} map={L.spaceStatus} /></div>
+            <div className="small muted">{b.name} · {L.occupancy[u.occupancy]}</div>
+            <div className="bold">{money(s.monthlyRate)} <span className="small muted">{t("/ month")}</span></div>
+            {s.amenities && <div className="tiny faint">{s.amenities}</div>}
+          </div>
+        </article>
+      ))}
+    </div>
   );
 }

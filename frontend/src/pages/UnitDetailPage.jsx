@@ -9,6 +9,7 @@ import { useAuth } from '../lib/auth';
 import { money, date, L, monthKey, isoDay } from '../lib/format';
 import { unitFields, spaceFields, leaseFields } from '../lib/forms';
 import { Spinner, ErrorBox, FormModal, Badge, Stat, MonthPicker, useToast } from '../components/ui';
+import PhotoManager from '../components/PhotoManager';
 
 export default function UnitDetailPage() {
   const { id } = useParams();
@@ -110,6 +111,11 @@ export default function UnitDetailPage() {
             {u.notes && <><dt>{t("Notes")}</dt><dd style={{ whiteSpace: 'pre-wrap' }}>{u.notes}</dd></>}
           </dl>
         </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="card-title" style={{ marginBottom: 10 }}>{t("Photos")}</div>
+        <PhotoManager unit={u} spaces={u.spaces || []} />
       </div>
 
       <div className="grid g2">

@@ -93,6 +93,7 @@ spacesRouter.get('/board', ah(async (req, res) => {
     include: {
       building: true,
       spaces: { include: { leases: { ...activeLease, take: 1 } }, orderBy: { code: 'asc' } },
+      photos: { select: { id: true, spaceId: true, cover: true }, orderBy: [{ cover: 'desc' }, { sort: 'asc' }] },
     },
     orderBy: [{ building: { name: 'asc' } }, { number: 'asc' }],
   });
@@ -100,7 +101,7 @@ spacesRouter.get('/board', ah(async (req, res) => {
   for (const u of units.map(sortSpaces)) {
     const b = byBuilding[u.buildingId] ||= { id: u.buildingId, name: u.building.name, area: u.building.area, units: [] };
     b.units.push({
-      id: u.id, number: u.number, occupancy: u.occupancy, amenities: u.amenities,
+      id: u.id, number: u.number, occupancy: u.occupancy, amenities: u.amenities, photos: u.photos,
       spaces: u.spaces.map(s => ({ ...s, lease: s.leases[0] || null, leases: undefined })),
     });
   }

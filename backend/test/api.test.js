@@ -579,3 +579,33 @@ test('website: public rooms and homes without tenant data, enquiries become lead
   assert.match(lead.notes, /Shared living/);
   assert.equal((await call('POST', '/api/public/site/leads', { name: 'Bot', phone: '000000000', website: 'spam' }, null)).status, 200, 'honeypot is ignored quietly');
 });
+
+test('photos: upload to an apartment or a room, cover, public file, shown on the website', async () => {
+  const board = (await call('GET', '/api/spaces/board')).body;
+  const unit = board.buildings[0].units[0];
+  const free = unit.spaces.find(s => s.status === 'AVAILABLE') || unit.spaces[0];
+  // a tiny real JPEG
+  const jpeg = '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=';
+  assert.equal((await call('POST', '/api/photos', { unitId: unit.id, data: Buffer.from('nope').toString('base64') })).status, 422);
+  const a = await call('POST', '/api/photos', { unitId: unit.id, data: jpeg, thumb: jpeg, width: 1, height: 1 });
+  assert.equal(a.status, 201, JSON.stringify(a.body));
+  assert.equal(a.body.cover, true, 'first photo becomes the cover');
+  const b = await call('POST', '/api/photos', { unitId: unit.id, spaceId: free.id, data: jpeg, thumb: jpeg });
+  assert.equal(b.body.cover, false);
+  assert.equal((await call('PATCH', `/api/photos/${b.body.id}`, { cover: true })).body.cover, true);
+  const list = (await call('GET', `/api/photos?unitId=${unit.id}`)).body;
+  assert.equal(list.filter(p => p.cover).length, 1);
+  const file = await fetch(`${base}/api/public/photo/${a.body.id}?size=thumb`);
+  assert.equal(file.status, 200);
+  assert.equal(file.headers.get('content-type'), 'image/jpeg');
+  assert.equal((await fetch(`${base}/api/public/photo/not-a-uuid`)).status, 404);
+  const onBoard = (await call('GET', '/api/spaces/board')).body.buildings[0].units[0];
+  assert.equal(onBoard.photos.length, 2);
+  if (free.status === 'AVAILABLE') {
+    const room = (await call('GET', '/api/public/site/rooms', null, null)).body.find(r => r.id === free.id);
+    assert.equal(room.photos[0], b.body.id, "the room's own photo comes first");
+  }
+  assert.equal((await call('DELETE', `/api/photos/${b.body.id}`)).status, 204);
+  assert.equal((await call('GET', `/api/photos?unitId=${unit.id}`)).body.find(p => p.id === a.body.id).cover, true, 'cover moves on when the cover is deleted');
+  assert.equal((await call('POST', '/api/photos', { unitId: unit.id, data: jpeg }, viewerToken)).status, 401);
+});

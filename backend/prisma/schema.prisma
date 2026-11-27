@@ -38,6 +38,7 @@ model Org {
   contracts   Contract[]
   documents   TenantDocument[]
   invoices    Invoice[]
+  photos      UnitPhoto[]
   createdAt   DateTime      @default(now())
 }
 
@@ -108,6 +109,7 @@ model Unit {
   onWebsite     Boolean      @default(true)  // listed on sakanly.com when it has something available
   airbnbUrl     String?
   bookingUrl    String?
+  photos        UnitPhoto[]
   spaces        Space[]
   leases        Lease[]
   bookings      Booking[]
@@ -137,6 +139,7 @@ model Space {
   leases        Lease[]
   bookings      Booking[]
   transactions  Transaction[]
+  photos        UnitPhoto[]
   createdAt     DateTime    @default(now())
 
   @@unique([unitId, code])
@@ -288,6 +291,29 @@ model Invoice {
 
   @@unique([orgId, number])
   @@index([orgId, kind, issueDate])
+}
+
+// Photos of an apartment, or of one room / bed in it. Stored resized (about 1600 px) with a small thumbnail.
+model UnitPhoto {
+  id        String   @id @default(uuid())
+  orgId     String
+  org       Org      @relation(fields: [orgId], references: [id])
+  unitId    String
+  unit      Unit     @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  spaceId   String?
+  space     Space?   @relation(fields: [spaceId], references: [id], onDelete: SetNull)
+  data      Bytes
+  thumb     Bytes
+  mime      String   @default("image/jpeg")
+  width     Int?
+  height    Int?
+  caption   String?
+  cover     Boolean  @default(false)
+  sort      Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([unitId, sort])
+  @@index([spaceId])
 }
 
 enum InvoiceKind {

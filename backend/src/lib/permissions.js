@@ -58,7 +58,7 @@ function required(method, path, query = {}, body = {}) {
   if (is(/^\/(contracts|tenant-documents)/)) return { need, any: ['tenants', 'partitions', 'apartments'] };
   if (is(/^\/spaces\/board/)) return { need, any: ['partitions'] };
   if (read) return null; // shared lookups
-  if (is(/^\/spaces/)) return { need, any: ['partitions', 'apartments'] };
+  if (is(/^\/(spaces|photos)/)) return { need, any: ['partitions', 'apartments'] };
   if (is(/^\/(units|buildings)/)) return { need, any: ['apartments'] };
   if (is(/^\/landlords/)) return { need, any: ['landlords', 'apartments'] };
   if (is(/^\/(tenants|leases)/)) return { need, any: ['tenants', 'partitions', 'apartments'] };

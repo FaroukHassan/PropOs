@@ -513,3 +513,23 @@ button.stat { font: inherit; text-align: start; color: inherit; width: 100%; }
   .inv-line { grid-template-columns: 1fr 1fr 1fr; }
   .inv-line > input:first-child { grid-column: 1 / -1; }
 }
+
+/* ── Photos ── */
+.photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.photo { margin: 0; border: 1px solid var(--bg-3); border-radius: 10px; overflow: hidden; background: #fff; display: flex; flex-direction: column; }
+.photo.is-cover { border-color: var(--sand); box-shadow: 0 0 0 1px var(--sand); }
+.photo-img { padding: 0; border: 0; background: var(--bg-2, #f3f1ec); cursor: zoom-in; aspect-ratio: 4 / 3; overflow: hidden; }
+.photo-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.photo figcaption { display: flex; gap: 6px; align-items: center; padding: 6px 8px 0; color: var(--text-3); }
+.tag-cover { font-size: 11px; font-weight: 700; background: var(--sand-bg, #f7f1e6); color: #8a6a35; border-radius: 999px; padding: 1px 8px; }
+.photo-actions { display: flex; gap: 4px; padding: 6px 8px 8px; flex-wrap: wrap; align-items: center; }
+.photo-actions .input-sm { width: 100%; min-width: 0; flex: 1 1 100%; order: -1; }
+.photo-count { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--bg-3); background: #fff; border-radius: 999px; padding: 2px 9px; font-size: 12px; color: var(--text-2); cursor: pointer; }
+.photo-count:hover { border-color: var(--sand); }
+.gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+.gallery-card { background: #fff; border: 1px solid var(--bg-3); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; }
+.gallery-card .shot { aspect-ratio: 4 / 3; background: var(--bg-2, #f3f1ec) center / cover no-repeat; position: relative; border: 0; padding: 0; cursor: pointer; }
+.gallery-card .shot .n { position: absolute; inset-inline-end: 8px; bottom: 8px; background: rgba(16,30,55,.75); color: #fff; font-size: 12px; border-radius: 999px; padding: 2px 8px; }
+.gallery-card .shot.none { display: grid; place-items: center; color: var(--text-3); font-size: 13px; }
+.gallery-card .info { padding: 12px 14px; display: grid; gap: 4px; }
+.btn.disabled { opacity: .6; pointer-events: none; }

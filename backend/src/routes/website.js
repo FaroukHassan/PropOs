@@ -26,7 +26,9 @@ const cacheFor = (res, seconds) => res.setHeader('Cache-Control', `public, max-a
 router.get('/rooms', ah(async (req, res) => {
   const spaces = await prisma.space.findMany({
     where: { orgId: await orgId(), status: 'AVAILABLE', unit: { is: { active: true, onWebsite: true, mode: 'PARTITIONS' } } },
-    include: { unit: { include: { building: true } } },
+    include: {
+      unit: { include: { building: true, photos: { select: { id: true, spaceId: true, cover: true }, orderBy: [{ cover: 'desc' }, { sort: 'asc' }] } } },
+    },
     orderBy: [{ monthlyRate: 'asc' }],
   });
   cacheFor(res, 120);
@@ -36,6 +38,8 @@ router.get('/rooms', ah(async (req, res) => {
     amenities: s.amenities || s.unit.amenities || null,
     apartment: s.unit.number, occupancy: s.unit.occupancy,
     building: s.unit.building.name, buildingSlug: slug(s.unit.building.name), area: s.unit.building.area || null,
+    // this room's own photos first, then the apartment's shared photos
+    photos: [...s.unit.photos.filter(p => p.spaceId === s.id), ...s.unit.photos.filter(p => !p.spaceId)].slice(0, 12).map(p => p.id),
   })));
 }));
 
@@ -43,7 +47,7 @@ router.get('/rooms', ah(async (req, res) => {
 router.get('/homes', ah(async (req, res) => {
   const units = await prisma.unit.findMany({
     where: { orgId: await orgId(), active: true, onWebsite: true, mode: 'HOLIDAY' },
-    include: { building: true },
+    include: { building: true, photos: { select: { id: true }, orderBy: [{ cover: 'desc' }, { sort: 'asc' }], take: 20 } },
     orderBy: [{ nightlyRate: 'asc' }],
   });
   cacheFor(res, 300);
@@ -51,6 +55,7 @@ router.get('/homes', ah(async (req, res) => {
     id: u.id, building: u.building.name, buildingSlug: slug(u.building.name), area: u.building.area || null,
     bedrooms: u.bedrooms, bathrooms: u.bathrooms, nightlyRate: u.nightlyRate, monthlyRent: u.monthlyRent,
     amenities: u.amenities || null, airbnbUrl: u.airbnbUrl || null, bookingUrl: u.bookingUrl || null,
+    photos: u.photos.map(p => p.id),
   })));
 }));
 

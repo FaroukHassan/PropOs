@@ -30,6 +30,8 @@ app.get('/health', (req, res) => res.json({ status: 'ok', ts: new Date() }));
 
 app.use('/api/auth', require('./routes/auth'));
 const contracts = require('./routes/contracts');
+const photos = require('./routes/photos');
+app.get('/api/public/photo/:id', photos.serve); // apartment photos, for the CRM and the website
 app.use('/api/public/site', require('./routes/website')); // sakanly.com: availability + enquiries
 app.use('/api/public', contracts.pub); // tenant signing links, no login
 
@@ -50,6 +52,7 @@ api.use('/leasing', require('./routes/leasing'));
 api.use('/contracts', contracts.router);
 api.use('/tenant-documents', require('./routes/documents'));
 api.use('/invoices', require('./routes/invoices'));
+api.use('/photos', photos.router);
 api.use('/', require('./routes/reports'));
 app.use('/api', api);
 
